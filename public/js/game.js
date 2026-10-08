@@ -12,7 +12,32 @@ let particles = [], dmgNums = [], fxAnims = [];
 
 // ---------- Load assets ----------
 const IMG = {};
-function loadImg(key, src) { return new Promise(res => { const i = new Image(); i.onload = () => res(IMG[key] = i); i.onerror = () => res(null); i.src = src; }); }
+const KEYED = new Set(['walk', 'attack', 'cast', 'm_hac', 'm_xa', 'm_lang']); // sprite cần tách nền trắng
+function loadImg(key, src) { return new Promise(res => { const i = new Image(); i.onload = () => res(IMG[key] = KEYED.has(key) ? keyOutWhite(i) : i); i.onerror = () => res(null); i.src = src; }); }
+// Tách nền trắng: flood-fill từ viền ảnh, chỉ xóa trắng liền với viền (không ăn vào áo trắng nhân vật)
+function keyOutWhite(img) {
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0);
+  const id = g.getImageData(0, 0, c.width, c.height), d = id.data, w = c.width, h = c.height;
+  const seen = new Uint8Array(w * h), stack = [];
+  for (let x = 0; x < w; x++) { stack.push(x); stack.push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { stack.push(y * w); stack.push(y * w + w - 1); }
+  while (stack.length) {
+    const p = stack.pop();
+    if (seen[p]) continue; seen[p] = 1;
+    const i = p * 4;
+    if (d[i] < 240 || d[i + 1] < 240 || d[i + 2] < 240) continue; // không phải trắng -> dừng
+    d[i + 3] = 0;
+    const x = p % w, y = (p / w) | 0;
+    if (x > 0) stack.push(p - 1);
+    if (x < w - 1) stack.push(p + 1);
+    if (y > 0) stack.push(p - w);
+    if (y < h - 1) stack.push(p + w);
+  }
+  g.putImageData(id, 0, 0);
+  return c;
+}
 const ASSETS = [
   ['map', 'assets/map-quang-truong.webp'],
   ['walk', 'assets/nvc-walk.webp'], ['attack', 'assets/nvc-attack.webp'], ['cast', 'assets/nvc-cast.webp'],
@@ -105,25 +130,30 @@ function spawnFx(m) {
 function resize() { cv.width = innerWidth; cv.height = innerHeight; }
 addEventListener('resize', resize); resize();
 
-function dirRow(dir) { // 0: phải, 1: xuống, 2: trái, 3: lên
+// Hàng sprite NVC: 0=xuống, 1=trái, 2=phải, 3=lên (đủ 4 hướng, không cần lật)
+function dirRow(dir) {
   const a = ((dir % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-  if (a < Math.PI/4 || a >= Math.PI*7/4) return 2;      // phải -> dùng hàng phải (mirror trái)
-  if (a < Math.PI*3/4) return 0;                        // xuống
-  if (a < Math.PI*5/4) return 3;                        // trái -> mirror
-  return 1;                                             // lên
+  if (a < Math.PI/4 || a >= Math.PI*7/4) return 2;  // phải
+  if (a < Math.PI*3/4) return 0;                    // xuống
+  if (a < Math.PI*5/4) return 1;                    // trái
+  return 3;                                         // lên
 }
-function drawSprite(img, x, y, dir, frame, scale, flip) {
+function drawSprite(img, x, y, dir, frame, scale) {
   if (!img) return;
   const cols = 4, rows = 4;
   const fw = img.width / cols, fh = img.height / rows;
-  const row = Math.min(3, dirRow(dir));
+  const row = dirRow(dir);
   const sx = (frame % cols) * fw, sy = row * fh;
   const dw = fw * scale, dh = fh * scale;
-  ctx.save();
-  ctx.translate(x, y);
-  if (flip) ctx.scale(-1, 1);
-  ctx.drawImage(img, sx, sy, fw, fh, -dw/2, -dh, dw, dh);
-  ctx.restore();
+  ctx.drawImage(img, sx, sy, fw, fh, x - dw/2, y - dh, dw, dh);
+}
+// Sheet quái 3x3: cột 0=đứng 1=chạy 2=đánh · hàng 0=trước 1=sau 2=ngang
+function drawMob(img, m, scale) {
+  if (!img) return;
+  const fw = img.width / 3, fh = img.height / 3;
+  const bob = Math.sin(walkT * 7 + m.id) * 3; // nhún nhẹ giả chuyển động
+  const dw = fw * scale, dh = fh * scale;
+  ctx.drawImage(img, fw * 1, 0, fw, fh, m.x - dw/2, m.y + bob - dh, dw, dh);
 }
 
 let lastT = 0, walkT = 0;
@@ -146,34 +176,35 @@ function loop(t) {
   // Map
   if (IMG.map) ctx.drawImage(IMG.map, 0, 0, WORLD_W, WORLD_H);
 
-  // Quái
+  // Gom entity trong tầm nhìn, XẾP THEO Y (đứng dưới vẽ sau = đè lên đúng như game thường)
+  const draws = [];
   for (const m of monsters.values()) {
     if (!inView(m.x, m.y)) continue;
-    const img = IMG[MOB_IMG[m.type]];
-    const fr = Math.floor(walkT * 6) % 4;
-    drawSprite(img, m.x, m.y, Math.PI/2, fr, 0.55, false);
-    // Máu quái
-    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.x - 24, m.y - 66, 48, 6);
-    ctx.fillStyle = '#e33'; ctx.fillRect(m.x - 24, m.y - 66, 48 * (m.hp / m.maxhp), 6);
+    draws.push({ y: m.y, f: () => {
+      drawMob(IMG[MOB_IMG[m.type]], m, 0.45);
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.x - 24, m.y - 200, 48, 6);
+      ctx.fillStyle = '#e33'; ctx.fillRect(m.x - 24, m.y - 200, 48 * (m.hp / m.maxhp), 6);
+    }});
   }
-
-  // Người chơi
   for (const p of players.values()) {
     if (!inView(p.x, p.y) || p.dead) continue;
-    const fr = p.moving ? Math.floor(walkT * 8) % 4 : 0;
-    const isMe = p.name === myName;
-    drawSprite(IMG.walk, p.x, p.y, p.dir, fr, 0.62, dirRow(p.dir) === 3);
-    if (p.shield) { // vòng kim chung
-      ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(p.x, p.y - 30, 34 + Math.sin(walkT*6)*3, 0, Math.PI*2); ctx.stroke();
-    }
-    ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(p.name, p.x, p.y - 78);
-    if (!isMe) {
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x - 24, p.y - 70, 48, 5);
-      ctx.fillStyle = '#e33'; ctx.fillRect(p.x - 24, p.y - 70, 48 * (p.hp / p.maxhp), 5);
-    }
+    draws.push({ y: p.y, f: () => {
+      const fr = p.moving ? Math.floor(walkT * 8) % 4 : 0;
+      const isMe = p.name === myName;
+      drawSprite(IMG.walk, p.x, p.y, p.dir, fr, 0.62);
+      if (p.shield) { // vòng kim chung quanh người
+        ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(p.x, p.y - 120, 72 + Math.sin(walkT*6)*3, 0, Math.PI*2); ctx.stroke();
+      }
+      ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(p.name, p.x, p.y - 258);
+      if (!isMe) {
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x - 24, p.y - 250, 48, 5);
+        ctx.fillStyle = '#e33'; ctx.fillRect(p.x - 24, p.y - 250, 48 * (p.hp / p.maxhp), 5);
+      }
+    }});
   }
+  draws.sort((a, b) => a.y - b.y).forEach(d => d.f());
 
   // Hiệu ứng phi kiếm
   for (const pt of particles) {
@@ -209,8 +240,8 @@ function loop(t) {
       ctx.fillRect(0, -f.w/2 * a, f.len, f.w * a);
     } else if (f.kind === 'shield') {
       ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.shadowColor = f.color; ctx.shadowBlur = 10;
-      ctx.beginPath(); ctx.arc(f.x, f.y - 30, 36, 0, Math.PI*2); ctx.stroke();
-      ctx.globalAlpha *= 0.25; ctx.beginPath(); ctx.arc(f.x, f.y - 30, 36, 0, Math.PI*2); ctx.fillStyle = f.color; ctx.fill();
+      ctx.beginPath(); ctx.arc(f.x, f.y - 120, 72, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha *= 0.25; ctx.beginPath(); ctx.arc(f.x, f.y - 120, 72, 0, Math.PI*2); ctx.fillStyle = f.color; ctx.fill();
     }
     ctx.restore();
   }
@@ -230,18 +261,31 @@ function loop(t) {
 
   ctx.restore();
   UI.drawMinimap();
+  // Tự động đánh khi đã chạy đủ gần quái được chọn
+  if (pendingAtk && me && !me.dead) {
+    const m = monsters.get(pendingAtk);
+    if (!m) pendingAtk = null;
+    else if (Math.hypot(m.x - me.x, m.y - me.y) < 110) { send({ t: 'attack' }); pendingAtk = null; }
+    else if (!me.moving) send({ t: 'move', x: Math.round(m.x), y: Math.round(m.y) });
+  }
 }
 
 // ---------- Input ----------
+let pendingAtk = null; // id quái đang muốn đánh -> tự chạy lại gần rồi đánh
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('mousedown', e => {
   if (e.button === 2) return;
   const wx = camX + (e.clientX - cv.width/2) / ZOOM;
   const wy = camY + (e.clientY - cv.height/2) / ZOOM;
-  // Click trúng quái -> đánh thường
+  // Click trúng quái -> tự chạy lại gần rồi đánh (như game thường)
   let best = null, bd = 60 / ZOOM;
   for (const m of monsters.values()) { const d = Math.hypot(m.x - wx, m.y - wy); if (d < bd) { bd = d; best = m; } }
-  if (best) { send({ t: 'attack' }); return; }
+  if (best) {
+    pendingAtk = best.id;
+    send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });
+    return;
+  }
+  pendingAtk = null;
   send({ t: 'move', x: Math.round(wx), y: Math.round(wy) });
 });
 addEventListener('keydown', e => {
