@@ -239,6 +239,7 @@ function loop(t) {
   camY += (me.y - camY) * Math.min(1, dt * 6);
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.save();
+  ctx.imageSmoothingEnabled = false; // pixel art: giữ nét gai, không làm mịn
   ctx.translate(cv.width/2 + (Math.random()-0.5)*shake, cv.height/2 + (Math.random()-0.5)*shake);
   ctx.scale(ZOOM, ZOOM); ctx.translate(-camX, -camY);
 
@@ -285,14 +286,14 @@ function loop(t) {
       const aEnd = atkAnim.get(p.name) || 0, cEnd = castAnim.get(p.name) || 0;
       if (cEnd > now) {            // vận công tung skill
         const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 130));
-        drawSheet(IMG.cast, p.x, p.y, dirRow(p.dir), fr, 4, 4, 0.28);
+        drawSheet(IMG.cast, p.x, p.y, dirRow(p.dir), fr, 4, 4, 0.3);
       } else if (aEnd > now) {     // chém đánh thường
         const fr = Math.min(3, Math.floor((340 - (aEnd - now)) / 85));
-        drawSheet(IMG.attack, p.x, p.y, atkRow(p.dir), fr, 4, 4, 0.28);
+        drawSheet(IMG.attack, p.x, p.y, atkRow(p.dir), fr, 4, 4, 0.3);
       } else {
         const fr = p.moving ? Math.floor(walkT * 10) % 4 : 0;
         const bobY = p.moving ? 0 : Math.sin(walkT * 2.5 + ph) * 2.5; // đứng yên cũng nhún nhẹ
-        drawSprite(IMG.walk, p.x, p.y + bobY, p.dir, fr, 0.28);
+        drawSprite(IMG.walk, p.x, p.y + bobY, p.dir, fr, 0.3);
       }
       if (p.moving && isMe && Math.random() < 0.22) { // bụi bay ở chân khi chạy
         particles.push({ x: p.x + (Math.random()-0.5)*22, y: p.y - 3, vx: (Math.random()-0.5)*36, vy: -24 - Math.random()*36, ang: 0, life: 0.45, maxLife: 0.45, color: 'rgba(190,180,160,0.7)', size: 9, dot: true });
