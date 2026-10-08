@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Thiên Kiêu Lộ — P1</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- Màn hình đăng nhập -->
+<div id="login">
+  <div class="login-box">
+    <h1>⚔️ THIÊN KIÊU LỘ</h1>
+    <p class="sub">Thanh Huyền Tông · Kiếm Các Đường</p>
+    <img id="hall-portrait" src="assets/nvc-portrait.webp" alt="Kiếm Các Đường">
+    <div class="hall-name">🗡️ Kiếm Các Đường <span class="tag">khả dụng</span></div>
+    <div class="hall-locked">🧧 Thần Phù · ☯️ Trận Sư · 💊 Dược Vương <span class="tag soon">sắp mở</span></div>
+    <input id="name-input" maxlength="16" placeholder="Nhập đạo hiệu của bạn...">
+    <button id="join-btn">Vào tông môn</button>
+  </div>
+</div>
+
+<!-- Game -->
+<div id="game" class="hidden">
+  <canvas id="cv"></canvas>
+  <!-- HUD gọn -->
+  <div id="hud">
+    <div class="bars">
+      <div class="bar hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
+      <div class="bar mp"><div id="mp-fill"></div><span id="mp-text"></span></div>
+      <div class="bar tv"><div id="tv-fill"></div><span id="tv-text"></span></div>
+    </div>
+    <div id="stat-line"><span id="lvl-text"></span> · <span id="lt-text"></span> · <span id="pot-text"></span></div>
+  </div>
+  <div id="skillbar"></div>
+  <canvas id="minimap" width="150" height="112"></canvas>
+  <div id="sysmsg"></div>
+  <div id="hint">Click: di chuyển · Click quái: đánh · 1-6: skill · Q: uống đan</div>
+</div>
+
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

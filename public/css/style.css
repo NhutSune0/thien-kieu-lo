@@ -1,0 +1,55 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; font-family: "Segoe UI", system-ui, sans-serif; color: #e8e4d8; }
+.hidden { display: none !important; }
+
+/* ---- Login ---- */
+#login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 30%, #1a2340 0%, #0b0e1a 70%); z-index: 10; }
+.login-box { text-align: center; padding: 32px 48px; background: rgba(20,26,48,.85); border: 1px solid #3a4a7a;
+  border-radius: 12px; box-shadow: 0 0 60px rgba(80,120,255,.15); max-width: 92vw; }
+.login-box h1 { font-size: 34px; letter-spacing: 6px; color: #ffd97a; text-shadow: 0 0 24px rgba(255,200,90,.4); }
+.login-box .sub { color: #8fa0c8; margin: 6px 0 14px; font-size: 14px; }
+#hall-portrait { width: 150px; height: 200px; object-fit: cover; border-radius: 8px; border: 2px solid #ffd97a55; }
+.hall-name { margin-top: 10px; font-size: 17px; color: #ffe9b0; }
+.hall-locked { margin-top: 6px; font-size: 13px; color: #66708c; }
+.tag { font-size: 11px; background: #2a7a3a; color: #fff; border-radius: 4px; padding: 1px 7px; margin-left: 6px; }
+.tag.soon { background: #555; }
+#name-input { display: block; margin: 16px auto 10px; padding: 10px 14px; width: 260px; font-size: 15px;
+  background: #10162c; border: 1px solid #3a4a7a; border-radius: 6px; color: #fff; text-align: center; }
+#join-btn { padding: 11px 44px; font-size: 16px; font-weight: bold; color: #1a1206; cursor: pointer;
+  background: linear-gradient(180deg, #ffe9a8, #e8a93d); border: none; border-radius: 8px; }
+#join-btn:hover { filter: brightness(1.1); }
+
+/* ---- Game ---- */
+#game { position: fixed; inset: 0; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+
+#hud { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+.bars { width: 240px; }
+.bar { position: relative; height: 16px; background: rgba(0,0,0,.55); border: 1px solid #00000088;
+  border-radius: 4px; margin-bottom: 4px; overflow: hidden; }
+.bar div { height: 100%; width: 100%; transition: width .15s; }
+.bar.hp div { background: linear-gradient(90deg, #d33, #f66); }
+.bar.mp div { background: linear-gradient(90deg, #36c, #6af); }
+.bar.tv div { background: linear-gradient(90deg, #3a5, #7d5); }
+.bar span { position: absolute; inset: 0; font-size: 10px; line-height: 16px; text-align: center; color: #fff; text-shadow: 0 1px 2px #000; }
+#stat-line { font-size: 12px; color: #ffe9b0; text-shadow: 0 1px 3px #000; margin-top: 2px; }
+
+#skillbar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+.skill { position: relative; width: 56px; height: 56px; border-radius: 8px; overflow: hidden; cursor: pointer;
+  border: 2px solid #4a5a8a; background: #10162c; }
+.skill img { width: 100%; height: 100%; object-fit: cover; }
+.skill .key { position: absolute; top: 1px; left: 4px; font-size: 10px; color: #ffd97a; text-shadow: 0 1px 2px #000; font-weight: bold; }
+.skill .cd { position: absolute; inset: 0; background: rgba(0,0,0,.72); display: flex; align-items: center;
+  justify-content: center; font-size: 18px; font-weight: bold; color: #fff; }
+.skill.nomp img { filter: grayscale(.9) brightness(.6); }
+.skill.nomp::after { content: ""; position: absolute; inset: 0; border: 2px solid #f44; border-radius: 6px;
+  animation: shake .3s; pointer-events: none; }
+@keyframes shake { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+
+#minimap { position: absolute; top: 10px; right: 10px; border: 1px solid #4a5a8a; border-radius: 6px; background: #0a0d18; }
+#sysmsg { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+#sysmsg div { background: rgba(10,14,30,.8); border: 1px solid #3a4a7a; border-radius: 6px; padding: 5px 14px;
+  margin-bottom: 5px; font-size: 13px; color: #ffe9b0; animation: fadein .3s; }
+@keyframes fadein { from { opacity: 0; transform: translateY(-6px); } }
+#hint { position: absolute; bottom: 14px; left: 12px; font-size: 11px; color: #8fa0c8; text-shadow: 0 1px 2px #000; pointer-events: none; }
