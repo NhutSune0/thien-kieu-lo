@@ -9,9 +9,35 @@ let ws, myName = '', players = new Map(), monsters = new Map();
 let camX = WORLD_W/2, camY = WORLD_H/2;
 let SKILLS = {}, ORDER = [];
 let particles = [], dmgNums = [], fxAnims = [];
+let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
 const atkAnim = new Map(), castAnim = new Map();   // name -> timestamp kết thúc anim đánh/vận công
 const hitFlash = new Map(), hitPop = new Map();    // mid -> timestamp flash/nảy khi trúng đòn
 const dyingMobs = new Map();                        // mid -> mob đang ngã xuống (fade out)
+
+// ---------- Âm thanh (WebAudio, không cần file) ----------
+let AC = null, muted = false;
+function beep(freq, dur, type, vol, slideTo) {
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq;
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), AC.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.12, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+const SFX = {
+  swing() { beep(620, 0.1, 'sawtooth', 0.05, 220); },
+  hit()   { beep(170, 0.14, 'square', 0.09, 65); },
+  skill() { beep(320, 0.32, 'sawtooth', 0.07, 950); },
+  die()   { beep(280, 0.4, 'triangle', 0.09, 75); },
+  loot()  { beep(880, 0.12, 'sine', 0.07, 1320); },
+  click() { beep(500, 0.05, 'sine', 0.04); },
+};
 
 // ---------- Load assets ----------
 const IMG = {};
@@ -80,14 +106,17 @@ function handle(m) {
     dmgNums.push({ x: 0, y: 0, mid: m.mid, txt: '-' + m.dmg, life: 1, color: '#ffdf6b' });
     const now = performance.now();
     hitFlash.set(m.mid, now + 150); hitPop.set(m.mid, now + 240); // chớp trắng + nảy lên khi trúng đòn
+    hitStop = Math.max(hitStop, 0.07); // khựng 70ms cho có lực
+    SFX.hit();
   }
   else if (m.t === 'mdie') {
     const mb = monsters.get(m.mid);
     if (mb) { mb.dying = performance.now() + 450; dyingMobs.set(m.mid, mb); } // ngã xuống fade dần
     monsters.delete(m.mid);
+    SFX.die();
   }
   else if (m.t === 'sys') sysMsg(m.text);
-  else if (m.t === 'loot') sysMsg(m.text);
+  else if (m.t === 'loot') { sysMsg(m.text); SFX.loot(); }
   else if (m.t === 'err') sysMsg('⚠️ ' + m.text);
   else if (m.t === 'leave') players.delete(m.name);
 }
@@ -113,8 +142,10 @@ function spawnFx(m) {
   // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
   if (m.id && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
   if (m.kind === 'slash') {
+    SFX.swing();
     for (let i = 0; i < 5; i++) swordParticle(m.x + (Math.random()-0.5)*50, m.y - 50 + (Math.random()-0.5)*50, m.dir + (Math.random()-0.5)*0.8, 460, 0.35, '#bfe9ff', 36);
   } else if (m.kind === 'bolt') {           // Linh Kiếm Trảm: phi kiếm bay thẳng
+    SFX.skill();
     swordParticle(m.x, m.y - 50, m.dir, 1000, 0.7, '#9fdcff', 62);
     fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.25, color: '#9fdcff' });
   } else if (m.kind === 'aoe') {            // Cửu Lôi / Phần Thiên: mưa phi kiếm
@@ -125,12 +156,14 @@ function spawnFx(m) {
       particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: col, size: 36, spin: 0, trail: true });
     }
     fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: m.r || 120, life: 0.5, color: col });
+    SFX.skill(); shake = Math.max(shake, 7);
   } else if (m.kind === 'nova') {           // Vạn Kiếm Quy Tông: vòng phi kiếm bung ra
     for (let i = 0; i < 24; i++) {
       const a = (i/24)*Math.PI*2;
       swordParticle(m.x, m.y, a, 520, 0.55, '#8fd8ff', 34);
     }
     fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: m.r, life: 0.6, color: '#8fd8ff' });
+    SFX.skill(); shake = Math.max(shake, 9);
   } else if (m.kind === 'line') {           // Khai Thiên: cự kiếm chém dọc đường thẳng
     const n = 9;
     for (let i = 1; i <= n; i++) {
@@ -138,6 +171,7 @@ function spawnFx(m) {
       swordParticle(m.x + Math.cos(m.dir)*d, m.y + Math.sin(m.dir)*d - 30, m.dir, 60, 0.6, '#ffe9a8', 52);
     }
     fxAnims.push({ kind: 'beam', x: m.x, y: m.y, dir: m.dir, len: m.len, w: m.w, life: 0.5, color: '#ffe9a8' });
+    SFX.skill(); shake = Math.max(shake, 12);
   } else if (m.kind === 'shield') {         // Kim Chung: chuông vàng
     fxAnims.push({ kind: 'shield', x: m.x, y: m.y, life: m.dur, color: '#ffd97a' });
   } else if (m.kind === 'heal') {
@@ -194,15 +228,19 @@ function drawMob(img, m, scale) {
 let lastT = 0, walkT = 0;
 function loop(t) {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t; walkT += dt;
+  let dt = Math.min(0.05, (t - lastT) / 1000 || 0.016); lastT = t;
+  if (hitStop > 0) { hitStop -= dt; dt *= 0.08; } // khựng khi trúng đòn
+  walkT += dt;
+  if (shake > 0.3) shake *= Math.pow(0.002, dt); else shake = 0; // rung màn hình tắt dần
   const me = players.get(myName);
   if (!me) return;
-  // Camera theo nhân vật
+  // Camera theo nhân vật (+ rung)
   camX += (me.x - camX) * Math.min(1, dt * 6);
   camY += (me.y - camY) * Math.min(1, dt * 6);
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.save();
-  ctx.translate(cv.width/2, cv.height/2); ctx.scale(ZOOM, ZOOM); ctx.translate(-camX, -camY);
+  ctx.translate(cv.width/2 + (Math.random()-0.5)*shake, cv.height/2 + (Math.random()-0.5)*shake);
+  ctx.scale(ZOOM, ZOOM); ctx.translate(-camX, -camY);
 
   const vx0 = camX - cv.width/2/ZOOM - 100, vx1 = camX + cv.width/2/ZOOM + 100;
   const vy0 = camY - cv.height/2/ZOOM - 100, vy1 = camY + cv.height/2/ZOOM + 100;
@@ -308,6 +346,12 @@ function loop(t) {
       ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.shadowColor = f.color; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(f.x, f.y - 52, 38, 0, Math.PI*2); ctx.stroke();
       ctx.globalAlpha *= 0.25; ctx.beginPath(); ctx.arc(f.x, f.y - 52, 38, 0, Math.PI*2); ctx.fillStyle = f.color; ctx.fill();
+    } else if (f.kind === 'click') { // vòng ripple chỗ bấm — thấy ngay bấm có ăn không
+      const pr = 1 - f.life / 0.35;
+      ctx.strokeStyle = 'rgba(255,233,168,.9)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(f.x, f.y, 10 + pr * 36, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha *= 0.5;
+      ctx.beginPath(); ctx.arc(f.x, f.y, 4, 0, Math.PI*2); ctx.fillStyle = '#ffe9a8'; ctx.fill();
     }
     ctx.restore();
   }
@@ -347,13 +391,20 @@ function loop(t) {
 let pendingAtk = null; // id quái đang muốn đánh -> tự chạy lại gần rồi đánh
 let deadSince = 0;     // lúc bắt đầu chết (đếm ngược hồi sinh)
 cv.addEventListener('contextmenu', e => e.preventDefault());
+document.getElementById('mutebtn').addEventListener('pointerdown', e => {
+  e.stopPropagation();
+  muted = !muted;
+  document.getElementById('mutebtn').textContent = muted ? '🔇' : '🔊';
+});
 // Dùng pointerdown để cả chuột và chạm màn hình đều ăn
 cv.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
+  SFX.click();
   const wx = camX + (e.clientX - cv.width/2) / ZOOM;
   const wy = camY + (e.clientY - cv.height/2) / ZOOM;
+  fxAnims.push({ kind: 'click', x: wx, y: wy, life: 0.35 }); // ripple báo đã nhận lệnh
   // Click trúng quái -> tự chạy lại gần rồi đánh (như game thường)
-  let best = null, bd = 60 / ZOOM;
+  let best = null, bd = 80 / ZOOM;
   for (const m of monsters.values()) { const d = Math.hypot(m.x - wx, m.y - wy); if (d < bd) { bd = d; best = m; } }
   if (best) {
     pendingAtk = best.id;

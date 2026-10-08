@@ -22,7 +22,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; f
 
 /* ---- Game ---- */
 #game { position: fixed; inset: 0; }
-#cv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+#mutebtn { position: absolute; top: 100px; right: 10px; font-size: 19px; cursor: pointer;
+  background: rgba(10,14,30,.7); border: 1px solid #4a5a8a; border-radius: 6px; padding: 3px 8px; user-select: none; }
 
 #hud { position: absolute; top: 10px; left: 10px; pointer-events: none; }
 .bars { width: 240px; }
