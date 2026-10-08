@@ -13,6 +13,8 @@ const TILE = 48;
 const MAP = { w: 80, h: 60 };              // Quảng Trường Tông Môn (P1)
 const WORLD_W = MAP.w * TILE;              // 3840
 const WORLD_H = MAP.h * TILE;              // 2880
+const SPAWN = { x: WORLD_W / 2, y: WORLD_H / 2 };
+const SAFE_R = 520; // vùng an toàn quanh điểm spawn: quái không chủ động đánh người trong này
 const PLAYER_SPEED = 230;                  // px/s (server kiểm tra)
 
 // ---------- Skill Kiếm Các Đường (P1) ----------
@@ -59,7 +61,7 @@ function newPlayerState(name) {
     tx: null, ty: null, moving: false,
     level: 1, tv: 0, hp: 120, maxhp: 120, mp: 80, maxmp: 80,
     atk: 24, lt: 20, potions: 3,
-    cds: {}, shieldUntil: 0, lastAtk: 0, dead: false, respawnAt: 0,
+    cds: {}, shieldUntil: 0, protectUntil: 0, lastAtk: 0, dead: false, respawnAt: 0,
   };
 }
 function loadPlayer(name) {
@@ -83,6 +85,11 @@ function spawnMonster(type, initial) {
     state: 'idle', wx: 0, wy: 0, wt: 0, target: null, atkAt: 0, dead: false, respawnAt: 0,
   };
   if (!initial) { m.x = WORLD_W/2 + (Math.random()-0.5)*1600; m.y = WORLD_H/2 + (Math.random()-0.5)*1200; }
+  // Đẩy quái ra khỏi vùng an toàn quanh điểm spawn
+  {
+    const dx = m.x - SPAWN.x, dy = m.y - SPAWN.y, d = Math.hypot(dx, dy);
+    if (d < 650) { const a = d > 1 ? Math.atan2(dy, dx) : Math.random()*Math.PI*2; m.x = SPAWN.x + Math.cos(a)*650; m.y = SPAWN.y + Math.sin(a)*650; }
+  }
   monsters.set(m.id, m);
   return m;
 }
@@ -102,6 +109,8 @@ wss.on('connection', ws => {
       const name = String(msg.name || '').trim().slice(0, 16) || 'Vô Danh';
       const st = loadPlayer(name);
       st.dead = false;
+      st.x = SPAWN.x; st.y = SPAWN.y; // về điểm spawn an toàn
+      st.protectUntil = Date.now() + 5000; // bảo hộ 5s lúc mới vào
       players.set(ws, st); ws._p = st;
       ws.send(JSON.stringify({ t: 'welcome', you: pubPlayer(st), skills: SKILLS, order: SKILL_ORDER }));
       broadcast({ t: 'sys', text: `${name} đã vào tông môn.` }, ws);
@@ -246,7 +255,7 @@ function usePotion(p) {
 }
 
 function hurtPlayer(p, dmg) {
-  if (p.dead) return;
+  if (p.dead || Date.now() < p.protectUntil) return; // bảo hộ tân thủ: không mất máu
   if (Date.now() < p.shieldUntil) dmg *= 0.25; // Kim Chung giảm 75%
   p.hp -= dmg;
   if (p.hp <= 0) {
@@ -264,7 +273,7 @@ setInterval(() => {
   // Người chơi
   for (const p of players.values()) {
     if (p.dead) {
-      if (now >= p.respawnAt) { p.dead = false; p.hp = p.maxhp; p.mp = p.maxmp; p.x = WORLD_W/2; p.y = WORLD_H/2; sendTo(p, { t: 'me', you: pubPlayer(p) }); }
+      if (now >= p.respawnAt) { p.dead = false; p.hp = p.maxhp; p.mp = p.maxmp; p.x = WORLD_W/2; p.y = WORLD_H/2; p.protectUntil = Date.now() + 5000; sendTo(p, { t: 'me', you: pubPlayer(p) }); }
       continue;
     }
     if (p.moving && p.tx !== null) {
@@ -290,7 +299,11 @@ setInterval(() => {
       if (d > 5) { m.x += dx/d * m.cfg.speed*0.4*dt; m.y += dy/d * m.cfg.speed*0.4*dt; }
       // Tìm mục tiêu
       let best = null, bd = m.cfg.aggro;
-      for (const p of players.values()) { if (p.dead) continue; const dd = dist(m, p); if (dd < bd) { bd = dd; best = p; } }
+      for (const p of players.values()) {
+        if (p.dead || Date.now() < p.protectUntil) continue;
+        if (Math.hypot(p.x - SPAWN.x, p.y - SPAWN.y) < SAFE_R) continue; // vùng an toàn: không chủ động đánh
+        const dd = dist(m, p); if (dd < bd) { bd = dd; best = p; }
+      }
       if (best) { m.state = 'chase'; m.target = best; }
     } else if (m.state === 'chase') {
       const t = m.target;

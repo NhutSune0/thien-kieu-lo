@@ -2,7 +2,7 @@
 (() => {
 'use strict';
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-const ZOOM = 0.7;                       // chuẩn VLTK: nhìn rộng, nhân vật gọn
+const ZOOM = 0.55;                       // zoom xa: nhân vật nhỏ gọn đúng tỉ lệ game thường
 const WORLD_W = 80 * 48, WORLD_H = 60 * 48;
 
 let ws, myName = '', players = new Map(), monsters = new Map();
@@ -58,6 +58,9 @@ function send(m) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); }
 
 function handle(m) {
   if (m.t === 'welcome') {
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('game').classList.remove('hidden');
+    resize();
     SKILLS = m.skills; ORDER = m.order; players.set(m.you.name, m.you);
     UI.buildSkills(); UI.updateMe(m.you);
   } else if (m.t === 'snap') {
@@ -90,18 +93,19 @@ function swordParticle(x, y, ang, speed, life, color, size) {
   particles.push({ x, y, vx: Math.cos(ang)*speed, vy: Math.sin(ang)*speed, ang, life, maxLife: life, color, size: size || 26, spin: 0 });
 }
 function spawnFx(m) {
-  const P = id => { const p = players.get(id); return p; };
+  // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
+  if (m.id && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
   if (m.kind === 'slash') {
-    for (let i = 0; i < 3; i++) swordParticle(m.x + (Math.random()-0.5)*40, m.y + (Math.random()-0.5)*40, m.dir + (Math.random()-0.5)*0.8, 420, 0.28, '#bfe9ff', 30);
+    for (let i = 0; i < 5; i++) swordParticle(m.x + (Math.random()-0.5)*50, m.y - 50 + (Math.random()-0.5)*50, m.dir + (Math.random()-0.5)*0.8, 460, 0.35, '#bfe9ff', 36);
   } else if (m.kind === 'bolt') {           // Linh Kiếm Trảm: phi kiếm bay thẳng
-    swordParticle(m.x, m.y - 20, m.dir, 900, 0.5, '#9fdcff', 44);
-    fxAnims.push({ kind: 'flash', x: m.x, y: m.y, r: 40, life: 0.2, color: '#9fdcff' });
+    swordParticle(m.x, m.y - 50, m.dir, 1000, 0.7, '#9fdcff', 62);
+    fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.25, color: '#9fdcff' });
   } else if (m.kind === 'aoe') {            // Cửu Lôi / Phần Thiên: mưa phi kiếm
     const col = m.id === 'cuu-loi-kiem' ? '#c07dff' : '#ff7a3d';
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 18; i++) {
       const a = Math.random()*Math.PI*2, rr = Math.random()*(m.r||120);
-      const sx = m.x + Math.cos(a)*rr, sy = m.y + Math.sin(a)*rr - 260;
-      particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.45, maxLife: 0.45, color: col, size: 30, spin: 0, trail: true });
+      const sx = m.x + Math.cos(a)*rr, sy = m.y + Math.sin(a)*rr - 300;
+      particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: col, size: 36, spin: 0, trail: true });
     }
     fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: m.r || 120, life: 0.5, color: col });
   } else if (m.kind === 'nova') {           // Vạn Kiếm Quy Tông: vòng phi kiếm bung ra
@@ -177,31 +181,35 @@ function loop(t) {
   if (IMG.map) ctx.drawImage(IMG.map, 0, 0, WORLD_W, WORLD_H);
 
   // Gom entity trong tầm nhìn, XẾP THEO Y (đứng dưới vẽ sau = đè lên đúng như game thường)
+  const shadow = (x, y, rx) => { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y + 3, rx, rx * 0.32, 0, 0, Math.PI*2); ctx.fill(); };
   const draws = [];
   for (const m of monsters.values()) {
     if (!inView(m.x, m.y)) continue;
     draws.push({ y: m.y, f: () => {
-      drawMob(IMG[MOB_IMG[m.type]], m, 0.45);
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.x - 24, m.y - 200, 48, 6);
-      ctx.fillStyle = '#e33'; ctx.fillRect(m.x - 24, m.y - 200, 48 * (m.hp / m.maxhp), 6);
+      shadow(m.x, m.y, 30);
+      drawMob(IMG[MOB_IMG[m.type]], m, 0.28);
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.x - 24, m.y - 118, 48, 6);
+      ctx.fillStyle = '#e33'; ctx.fillRect(m.x - 24, m.y - 118, 48 * (m.hp / m.maxhp), 6);
     }});
   }
   for (const p of players.values()) {
     if (!inView(p.x, p.y) || p.dead) continue;
     draws.push({ y: p.y, f: () => {
-      const fr = p.moving ? Math.floor(walkT * 8) % 4 : 0;
+      const fr = p.moving ? Math.floor(walkT * 10) % 4 : 0;
       const isMe = p.name === myName;
-      drawSprite(IMG.walk, p.x, p.y, p.dir, fr, 0.62);
+      const ph = p.name.charCodeAt(0) || 0;
+      const bobY = p.moving ? 0 : Math.sin(walkT * 2.5 + ph) * 2.5; // đứng yên cũng nhún nhẹ cho đỡ đơ
+      shadow(p.x, p.y, 26);
+      drawSprite(IMG.walk, p.x, p.y + bobY, p.dir, fr, 0.28);
       if (p.shield) { // vòng kim chung quanh người
-        ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(p.x, p.y - 120, 72 + Math.sin(walkT*6)*3, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(p.x, p.y - 52, 38 + Math.sin(walkT*6)*2, 0, Math.PI*2); ctx.stroke();
       }
-      ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.x, p.y - 258);
-      if (!isMe) {
-        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x - 24, p.y - 250, 48, 5);
-        ctx.fillStyle = '#e33'; ctx.fillRect(p.x - 24, p.y - 250, 48 * (p.hp / p.maxhp), 5);
-      }
+      ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(p.name, p.x, p.y - 126);
+      // Thanh máu trên đầu (mình: xanh lá, người khác: đỏ) — như game thường
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x - 24, p.y - 118, 48, 5);
+      ctx.fillStyle = isMe ? '#5f5' : '#e33'; ctx.fillRect(p.x - 24, p.y - 118, 48 * Math.max(0, p.hp / p.maxhp), 5);
     }});
   }
   draws.sort((a, b) => a.y - b.y).forEach(d => d.f());
@@ -240,8 +248,8 @@ function loop(t) {
       ctx.fillRect(0, -f.w/2 * a, f.len, f.w * a);
     } else if (f.kind === 'shield') {
       ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.shadowColor = f.color; ctx.shadowBlur = 10;
-      ctx.beginPath(); ctx.arc(f.x, f.y - 120, 72, 0, Math.PI*2); ctx.stroke();
-      ctx.globalAlpha *= 0.25; ctx.beginPath(); ctx.arc(f.x, f.y - 120, 72, 0, Math.PI*2); ctx.fillStyle = f.color; ctx.fill();
+      ctx.beginPath(); ctx.arc(f.x, f.y - 52, 38, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha *= 0.25; ctx.beginPath(); ctx.arc(f.x, f.y - 52, 38, 0, Math.PI*2); ctx.fillStyle = f.color; ctx.fill();
     }
     ctx.restore();
   }
@@ -261,6 +269,13 @@ function loop(t) {
 
   ctx.restore();
   UI.drawMinimap();
+  // Overlay hồi sinh khi ngã xuống
+  const deadEl = document.getElementById('dead-overlay');
+  if (me.dead) {
+    if (!deadSince) deadSince = performance.now();
+    deadEl.style.display = 'flex';
+    document.getElementById('dead-count').textContent = Math.ceil(Math.max(0, 5 - (performance.now() - deadSince) / 1000));
+  } else { deadSince = 0; deadEl.style.display = 'none'; }
   // Tự động đánh khi đã chạy đủ gần quái được chọn
   if (pendingAtk && me && !me.dead) {
     const m = monsters.get(pendingAtk);
@@ -272,8 +287,10 @@ function loop(t) {
 
 // ---------- Input ----------
 let pendingAtk = null; // id quái đang muốn đánh -> tự chạy lại gần rồi đánh
+let deadSince = 0;     // lúc bắt đầu chết (đếm ngược hồi sinh)
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('mousedown', e => {
+// Dùng pointerdown để cả chuột và chạm màn hình đều ăn
+cv.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
   const wx = camX + (e.clientX - cv.width/2) / ZOOM;
   const wy = camY + (e.clientY - cv.height/2) / ZOOM;
@@ -297,11 +314,10 @@ addEventListener('keydown', e => {
 
 // ---------- Khởi động ----------
 document.getElementById('join-btn').onclick = async () => {
+  const btn = document.getElementById('join-btn');
   const name = document.getElementById('name-input').value.trim();
   if (!name) { alert('Nhập đạo hiệu đã bạn ơi'); return; }
-  myName = name;
-  document.getElementById('login').classList.add('hidden');
-  document.getElementById('game').classList.remove('hidden');
+  myName = name; btn.disabled = true; btn.textContent = 'Đang tải...';
   resize();
   for (const [k, s] of ASSETS) await loadImg(k, s);
   for (const [id, f] of Object.entries(ICONS)) await loadImg('ic_' + id, 'assets/' + f);

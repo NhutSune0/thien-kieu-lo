@@ -36,6 +36,9 @@ function buildSkills() {
     bar.appendChild(d);
   });
   setInterval(tickCds, 100);
+  // Nhấp nháy 6s đầu để báo "icon này chạm được"
+  bar.classList.add('attn');
+  setTimeout(() => bar.classList.remove('attn'), 6000);
 }
 function iconFile(id) {
   return { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp','van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp' }[id];
