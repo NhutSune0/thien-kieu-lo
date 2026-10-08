@@ -9,6 +9,9 @@ let ws, myName = '', players = new Map(), monsters = new Map();
 let camX = WORLD_W/2, camY = WORLD_H/2;
 let SKILLS = {}, ORDER = [];
 let particles = [], dmgNums = [], fxAnims = [];
+const atkAnim = new Map(), castAnim = new Map();   // name -> timestamp kết thúc anim đánh/vận công
+const hitFlash = new Map(), hitPop = new Map();    // mid -> timestamp flash/nảy khi trúng đòn
+const dyingMobs = new Map();                        // mid -> mob đang ngã xuống (fade out)
 
 // ---------- Load assets ----------
 const IMG = {};
@@ -73,8 +76,16 @@ function handle(m) {
     players.set(m.you.name, Object.assign(players.get(m.you.name) || {}, m.you));
     UI.updateMe(m.you);
   } else if (m.t === 'fx') spawnFx(m);
-  else if (m.t === 'dmg') { dmgNums.push({ x: 0, y: 0, mid: m.mid, txt: '-' + m.dmg, life: 1, color: '#ffdf6b' }); }
-  else if (m.t === 'mdie') monsters.delete(m.mid);
+  else if (m.t === 'dmg') {
+    dmgNums.push({ x: 0, y: 0, mid: m.mid, txt: '-' + m.dmg, life: 1, color: '#ffdf6b' });
+    const now = performance.now();
+    hitFlash.set(m.mid, now + 150); hitPop.set(m.mid, now + 240); // chớp trắng + nảy lên khi trúng đòn
+  }
+  else if (m.t === 'mdie') {
+    const mb = monsters.get(m.mid);
+    if (mb) { mb.dying = performance.now() + 450; dyingMobs.set(m.mid, mb); } // ngã xuống fade dần
+    monsters.delete(m.mid);
+  }
   else if (m.t === 'sys') sysMsg(m.text);
   else if (m.t === 'loot') sysMsg(m.text);
   else if (m.t === 'err') sysMsg('⚠️ ' + m.text);
@@ -93,6 +104,12 @@ function swordParticle(x, y, ang, speed, life, color, size) {
   particles.push({ x, y, vx: Math.cos(ang)*speed, vy: Math.sin(ang)*speed, ang, life, maxLife: life, color, size: size || 26, spin: 0 });
 }
 function spawnFx(m) {
+  const now = performance.now();
+  // Kích hoạt animation đánh / vận công của người tung chiêu
+  if (m.by) {
+    if (m.kind === 'slash') atkAnim.set(m.by, now + 340);
+    else if (m.id) castAnim.set(m.by, now + 520);
+  }
   // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
   if (m.id && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
   if (m.kind === 'slash') {
@@ -142,22 +159,36 @@ function dirRow(dir) {
   if (a < Math.PI*5/4) return 1;                    // trái
   return 3;                                         // lên
 }
-function drawSprite(img, x, y, dir, frame, scale) {
+function drawSheet(img, x, y, row, frame, cols, rows, scale) {
   if (!img) return;
-  const cols = 4, rows = 4;
   const fw = img.width / cols, fh = img.height / rows;
-  const row = dirRow(dir);
-  const sx = (frame % cols) * fw, sy = row * fh;
   const dw = fw * scale, dh = fh * scale;
-  ctx.drawImage(img, sx, sy, fw, fh, x - dw/2, y - dh, dw, dh);
+  ctx.drawImage(img, (frame % cols) * fw, row * fh, fw, fh, x - dw/2, y - dh, dw, dh);
 }
-// Sheet quái 3x3: cột 0=đứng 1=chạy 2=đánh · hàng 0=trước 1=sau 2=ngang
+function drawSprite(img, x, y, dir, frame, scale) { drawSheet(img, x, y, dirRow(dir), frame, 4, 4, scale); }
+// Sheet đánh: hàng 0=xuống, 1=lên, 2=trái, 3=phải
+function atkRow(dir) {
+  const a = ((dir % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  if (a >= Math.PI/4 && a < Math.PI*3/4) return 0;   // xuống
+  if (a >= Math.PI*5/4 && a < Math.PI*7/4) return 1; // lên
+  if (a >= Math.PI*3/4 && a < Math.PI*5/4) return 2; // trái
+  return 3;                                          // phải
+}
+// Sheet quái 3x3: cột 0=đứng 1=chạy 2=đánh · hàng 0=trước 1=sau 2=ngang — thêm squash & stretch cho đỡ "ảnh tĩnh"
 function drawMob(img, m, scale) {
   if (!img) return;
   const fw = img.width / 3, fh = img.height / 3;
-  const bob = Math.sin(walkT * 7 + m.id) * 3; // nhún nhẹ giả chuyển động
-  const dw = fw * scale, dh = fh * scale;
-  ctx.drawImage(img, fw * 1, 0, fw, fh, m.x - dw/2, m.y + bob - dh, dw, dh);
+  const bob = Math.sin(walkT * 7 + m.id) * 3;
+  const sq = Math.sin(walkT * 9 + m.id * 1.7);          // co giãn nhịp nhàng
+  const now = performance.now();
+  const pop = hitPop.get(m.id) > now ? 1.14 : 1;        // nảy lên khi trúng đòn
+  const dw = fw * scale * (1 - sq * 0.03) * pop, dh = fh * scale * (1 + sq * 0.045) * pop;
+  ctx.save();
+  ctx.translate(m.x, m.y + bob);
+  ctx.rotate(Math.sin(walkT * 5 + m.id) * 0.035);        // lắc nhẹ
+  if (hitFlash.get(m.id) > now) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 26; } // chớp trắng khi trúng đòn
+  ctx.drawImage(img, fw * 1, 0, fw, fh, -dw/2, -dh, dw, dh);
+  ctx.restore();
 }
 
 let lastT = 0, walkT = 0;
@@ -192,15 +223,42 @@ function loop(t) {
       ctx.fillStyle = '#e33'; ctx.fillRect(m.x - 24, m.y - 118, 48 * (m.hp / m.maxhp), 6);
     }});
   }
+  // Quái đang ngã xuống: mờ dần rồi biến mất
+  {
+    const nowD = performance.now();
+    for (const [id, m] of dyingMobs) {
+      const left = m.dying - nowD;
+      if (left <= 0) { dyingMobs.delete(id); continue; }
+      if (!inView(m.x, m.y)) continue;
+      draws.push({ y: m.y, f: () => {
+        ctx.save(); ctx.globalAlpha = Math.max(0, left / 450);
+        drawMob(IMG[MOB_IMG[m.type]], m, 0.28);
+        ctx.restore();
+      }});
+    }
+  }
   for (const p of players.values()) {
     if (!inView(p.x, p.y) || p.dead) continue;
     draws.push({ y: p.y, f: () => {
-      const fr = p.moving ? Math.floor(walkT * 10) % 4 : 0;
       const isMe = p.name === myName;
       const ph = p.name.charCodeAt(0) || 0;
-      const bobY = p.moving ? 0 : Math.sin(walkT * 2.5 + ph) * 2.5; // đứng yên cũng nhún nhẹ cho đỡ đơ
+      const now = performance.now();
       shadow(p.x, p.y, 26);
-      drawSprite(IMG.walk, p.x, p.y + bobY, p.dir, fr, 0.28);
+      const aEnd = atkAnim.get(p.name) || 0, cEnd = castAnim.get(p.name) || 0;
+      if (cEnd > now) {            // vận công tung skill
+        const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 130));
+        drawSheet(IMG.cast, p.x, p.y, dirRow(p.dir), fr, 4, 4, 0.28);
+      } else if (aEnd > now) {     // chém đánh thường
+        const fr = Math.min(3, Math.floor((340 - (aEnd - now)) / 85));
+        drawSheet(IMG.attack, p.x, p.y, atkRow(p.dir), fr, 4, 4, 0.28);
+      } else {
+        const fr = p.moving ? Math.floor(walkT * 10) % 4 : 0;
+        const bobY = p.moving ? 0 : Math.sin(walkT * 2.5 + ph) * 2.5; // đứng yên cũng nhún nhẹ
+        drawSprite(IMG.walk, p.x, p.y + bobY, p.dir, fr, 0.28);
+      }
+      if (p.moving && isMe && Math.random() < 0.22) { // bụi bay ở chân khi chạy
+        particles.push({ x: p.x + (Math.random()-0.5)*22, y: p.y - 3, vx: (Math.random()-0.5)*36, vy: -24 - Math.random()*36, ang: 0, life: 0.45, maxLife: 0.45, color: 'rgba(190,180,160,0.7)', size: 9, dot: true });
+      }
       if (p.shield) { // vòng kim chung quanh người
         ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(p.x, p.y - 52, 38 + Math.sin(walkT*6)*2, 0, Math.PI*2); ctx.stroke();
