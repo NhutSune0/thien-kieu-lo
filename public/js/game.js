@@ -13,6 +13,7 @@ let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
 const atkAnim = new Map(), castAnim = new Map();   // name -> timestamp kết thúc anim đánh/vận công
 const hitFlash = new Map(), hitPop = new Map();    // mid -> timestamp flash/nảy khi trúng đòn
 const dyingMobs = new Map();                        // mid -> mob đang ngã xuống (fade out)
+const mobAtk = new Map();                           // mid -> timestamp quái đang ra đòn
 
 // ---------- Âm thanh (WebAudio, không cần file) ----------
 let AC = null, muted = false;
@@ -178,6 +179,10 @@ function spawnFx(m) {
     for (let i = 0; i < 10; i++) particles.push({ x: m.x + (Math.random()-0.5)*50, y: m.y + (Math.random()-0.5)*30, vx: (Math.random()-0.5)*40, vy: -120 - Math.random()*60, ang: 0, life: 0.8, maxLife: 0.8, color: '#7dff9a', size: 8, dot: true });
   } else if (m.kind === 'hit') {
     fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 20, r: 26, life: 0.15, color: '#ff5a5a' });
+    // Tìm con quái gần nhất đang đánh -> cho nó ra đòn thế đánh
+    let bm = null, bd = 130;
+    for (const mon of monsters.values()) { const d = Math.hypot(mon.x - m.x, mon.y - m.y); if (d < bd) { bd = d; bm = mon; } }
+    if (bm) mobAtk.set(bm.id, performance.now() + 350);
   }
 }
 
@@ -212,16 +217,17 @@ function atkRow(dir) {
 function drawMob(img, m, scale) {
   if (!img) return;
   const fw = img.width / 3, fh = img.height / 3;
+  const now = performance.now();
+  const col = (mobAtk.get(m.id) > now) ? 2 : (m.moving ? 1 : 0); // tự đổi thế: đánh / chạy / đứng
   const bob = Math.sin(walkT * 7 + m.id) * 3;
   const sq = Math.sin(walkT * 9 + m.id * 1.7);          // co giãn nhịp nhàng
-  const now = performance.now();
   const pop = hitPop.get(m.id) > now ? 1.14 : 1;        // nảy lên khi trúng đòn
   const dw = fw * scale * (1 - sq * 0.03) * pop, dh = fh * scale * (1 + sq * 0.045) * pop;
   ctx.save();
-  ctx.translate(m.x, m.y + bob);
+  ctx.translate(m.rx, m.ry + bob);
   ctx.rotate(Math.sin(walkT * 5 + m.id) * 0.035);        // lắc nhẹ
   if (hitFlash.get(m.id) > now) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 26; } // chớp trắng khi trúng đòn
-  ctx.drawImage(img, fw * 1, 0, fw, fh, -dw/2, -dh, dw, dh);
+  ctx.drawImage(img, fw * col, 0, fw, fh, -dw/2, -dh, dw, dh);
   ctx.restore();
 }
 
@@ -234,9 +240,21 @@ function loop(t) {
   if (shake > 0.3) shake *= Math.pow(0.002, dt); else shake = 0; // rung màn hình tắt dần
   const me = players.get(myName);
   if (!me) return;
+  // NỘI SUY CHUYỂN ĐỘNG: server gửi 20Hz, render 60fps — lerp để đi/đánh mượt, không giật từng bước
+  const kk = Math.min(1, dt * 10);
+  for (const p of players.values()) {
+    if (p.rx === undefined) { p.rx = p.x; p.ry = p.y; }
+    p.rx += (p.x - p.rx) * kk; p.ry += (p.y - p.ry) * kk;
+  }
+  for (const m of monsters.values()) {
+    if (m.rx === undefined) { m.rx = m.x; m.ry = m.y; }
+    const mdx = m.x - m.rx, mdy = m.y - m.ry;
+    m.moving = Math.hypot(mdx, mdy) > 4;
+    m.rx += mdx * kk; m.ry += mdy * kk;
+  }
   // Camera theo nhân vật (+ rung)
-  camX += (me.x - camX) * Math.min(1, dt * 6);
-  camY += (me.y - camY) * Math.min(1, dt * 6);
+  camX += (me.rx - camX) * Math.min(1, dt * 6);
+  camY += (me.ry - camY) * Math.min(1, dt * 6);
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.save();
   ctx.imageSmoothingEnabled = false; // pixel art: giữ nét gai, không làm mịn
@@ -254,12 +272,12 @@ function loop(t) {
   const shadow = (x, y, rx) => { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y + 3, rx, rx * 0.32, 0, 0, Math.PI*2); ctx.fill(); };
   const draws = [];
   for (const m of monsters.values()) {
-    if (!inView(m.x, m.y)) continue;
-    draws.push({ y: m.y, f: () => {
-      shadow(m.x, m.y, 30);
+    if (!inView(m.rx, m.ry)) continue;
+    draws.push({ y: m.ry, f: () => {
+      shadow(m.rx, m.ry, 30);
       drawMob(IMG[MOB_IMG[m.type]], m, 0.28);
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.x - 24, m.y - 118, 48, 6);
-      ctx.fillStyle = '#e33'; ctx.fillRect(m.x - 24, m.y - 118, 48 * (m.hp / m.maxhp), 6);
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.rx - 24, m.ry - 118, 48, 6);
+      ctx.fillStyle = '#e33'; ctx.fillRect(m.rx - 24, m.ry - 118, 48 * (m.hp / m.maxhp), 6);
     }});
   }
   // Quái đang ngã xuống: mờ dần rồi biến mất
@@ -268,8 +286,9 @@ function loop(t) {
     for (const [id, m] of dyingMobs) {
       const left = m.dying - nowD;
       if (left <= 0) { dyingMobs.delete(id); continue; }
-      if (!inView(m.x, m.y)) continue;
-      draws.push({ y: m.y, f: () => {
+      if (m.rx === undefined) { m.rx = m.x; m.ry = m.y; }
+      if (!inView(m.rx, m.ry)) continue;
+      draws.push({ y: m.ry, f: () => {
         ctx.save(); ctx.globalAlpha = Math.max(0, left / 450);
         drawMob(IMG[MOB_IMG[m.type]], m, 0.28);
         ctx.restore();
@@ -277,36 +296,36 @@ function loop(t) {
     }
   }
   for (const p of players.values()) {
-    if (!inView(p.x, p.y) || p.dead) continue;
-    draws.push({ y: p.y, f: () => {
+    if (!inView(p.rx, p.ry) || p.dead) continue;
+    draws.push({ y: p.ry, f: () => {
       const isMe = p.name === myName;
       const ph = p.name.charCodeAt(0) || 0;
       const now = performance.now();
-      shadow(p.x, p.y, 26);
+      shadow(p.rx, p.ry, 26);
       const aEnd = atkAnim.get(p.name) || 0, cEnd = castAnim.get(p.name) || 0;
       if (cEnd > now) {            // vận công tung skill
-        const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 130));
-        drawSheet(IMG.cast, p.x, p.y, dirRow(p.dir), fr, 4, 4, 0.3);
+        const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 100));
+        drawSheet(IMG.cast, p.rx, p.ry, dirRow(p.dir), fr, 4, 4, 0.3);
       } else if (aEnd > now) {     // chém đánh thường
         const fr = Math.min(3, Math.floor((340 - (aEnd - now)) / 85));
-        drawSheet(IMG.attack, p.x, p.y, atkRow(p.dir), fr, 4, 4, 0.3);
+        drawSheet(IMG.attack, p.rx, p.ry, atkRow(p.dir), fr, 4, 4, 0.3);
       } else {
-        const fr = p.moving ? Math.floor(walkT * 10) % 4 : 0;
+        const fr = p.moving ? Math.floor(walkT * 12) % 4 : 0;
         const bobY = p.moving ? 0 : Math.sin(walkT * 2.5 + ph) * 2.5; // đứng yên cũng nhún nhẹ
-        drawSprite(IMG.walk, p.x, p.y + bobY, p.dir, fr, 0.3);
+        drawSprite(IMG.walk, p.rx, p.ry + bobY, p.dir, fr, 0.3);
       }
       if (p.moving && isMe && Math.random() < 0.22) { // bụi bay ở chân khi chạy
-        particles.push({ x: p.x + (Math.random()-0.5)*22, y: p.y - 3, vx: (Math.random()-0.5)*36, vy: -24 - Math.random()*36, ang: 0, life: 0.45, maxLife: 0.45, color: 'rgba(190,180,160,0.7)', size: 9, dot: true });
+        particles.push({ x: p.rx + (Math.random()-0.5)*22, y: p.ry - 3, vx: (Math.random()-0.5)*36, vy: -24 - Math.random()*36, ang: 0, life: 0.45, maxLife: 0.45, color: 'rgba(190,180,160,0.7)', size: 9, dot: true });
       }
       if (p.shield) { // vòng kim chung quanh người
         ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.arc(p.x, p.y - 52, 38 + Math.sin(walkT*6)*2, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.rx, p.ry - 52, 38 + Math.sin(walkT*6)*2, 0, Math.PI*2); ctx.stroke();
       }
       ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.x, p.y - 126);
+      ctx.fillText(p.name, p.rx, p.ry - 126);
       // Thanh máu trên đầu (mình: xanh lá, người khác: đỏ) — như game thường
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.x - 24, p.y - 118, 48, 5);
-      ctx.fillStyle = isMe ? '#5f5' : '#e33'; ctx.fillRect(p.x - 24, p.y - 118, 48 * Math.max(0, p.hp / p.maxhp), 5);
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.rx - 24, p.ry - 118, 48, 5);
+      ctx.fillStyle = isMe ? '#5f5' : '#e33'; ctx.fillRect(p.rx - 24, p.ry - 118, 48 * Math.max(0, p.hp / p.maxhp), 5);
     }});
   }
   draws.sort((a, b) => a.y - b.y).forEach(d => d.f());
@@ -363,7 +382,7 @@ function loop(t) {
   for (const d of dmgNums) {
     d.life -= dt * 1.2;
     const m = monsters.get(d.mid);
-    const x = m ? m.x : d.x, y = (m ? m.y : d.y) - 70 - (1 - d.life) * 40;
+    const x = m && m.rx !== undefined ? m.rx : d.x, y = (m && m.ry !== undefined ? m.ry : d.y) - 70 - (1 - d.life) * 40;
     ctx.globalAlpha = Math.max(0, d.life);
     ctx.fillStyle = d.color; ctx.fillText(d.txt, x, y);
     ctx.globalAlpha = 1;
