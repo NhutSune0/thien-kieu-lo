@@ -60,7 +60,7 @@ function newPlayerState(name) {
     name, hall: 'kiem-cac', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
     tx: null, ty: null, moving: false,
     level: 1, tv: 0, hp: 120, maxhp: 120, mp: 80, maxmp: 80,
-    atk: 24, lt: 20, potions: 3,
+    atk: 24, def: 8, lt: 20, potions: 3,
     cds: {}, shieldUntil: 0, protectUntil: 0, lastAtk: 0, dead: false, respawnAt: 0,
   };
 }
@@ -128,6 +128,13 @@ wss.on('connection', ws => {
       basicAttack(p);
     } else if (msg.t === 'potion') {
       usePotion(p);
+    } else if (msg.t === 'chat') {
+      const now = Date.now();
+      if (now - (p.lastChat || 0) < 2000) return; // chống spam
+      const text = String(msg.text || '').trim().slice(0, 80);
+      if (!text) return;
+      p.lastChat = now;
+      broadcast({ t: 'chat', name: p.name, text });
     }
   });
   ws.on('close', () => {
@@ -140,6 +147,7 @@ function pubPlayer(p) {
   return { name: p.name, hall: p.hall, x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2),
     hp: Math.ceil(p.hp), maxhp: p.maxhp, mp: Math.ceil(p.mp), maxmp: p.maxmp,
     level: p.level, tv: p.tv, tvNeed: tvNeed(p.level), lt: p.lt, potions: p.potions,
+    atk: p.atk, def: p.def || 8,
     moving: p.moving, dead: p.dead, shield: Date.now() < p.shieldUntil };
 }
 function broadcast(msg, except) {

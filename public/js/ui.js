@@ -68,17 +68,94 @@ function tickCds() {
 
 function drawMinimap() {
   const mm = document.getElementById('minimap'), c = mm.getContext('2d');
-  const W = 80 * 48, H = 60 * 48, sx = mm.width / W, sy = mm.height / H;
-  c.clearRect(0, 0, mm.width, mm.height);
-  c.fillStyle = '#141b33'; c.fillRect(0, 0, mm.width, mm.height);
+  drawMapOn(c, mm.width, mm.height);
+}
+function drawMapOn(c, W, H) {
+  const w = 80 * 48, h = 60 * 48, sx = W / w, sy = H / h;
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = '#141b33'; c.fillRect(0, 0, W, H);
   c.fillStyle = '#e33';
   for (const m of G().monsters.values()) { c.fillRect(m.x * sx - 1, m.y * sy - 1, 2, 2); }
   for (const p of G().players.values()) {
     c.fillStyle = p.name === G().myName ? '#7dff9a' : '#fff';
     c.beginPath(); c.arc(p.x * sx, p.y * sy, p.name === G().myName ? 3.5 : 2.5, 0, Math.PI * 2); c.fill();
   }
-  c.strokeStyle = '#4a5a8a'; c.strokeRect(0.5, 0.5, mm.width - 1, mm.height - 1);
+  c.strokeStyle = '#4a5a8a'; c.strokeRect(0.5, 0.5, W - 1, H - 1);
 }
 
-window.UI = { updateMe, buildSkills, trySkill, drawMinimap };
+// ---------- Panel UI ----------
+function togglePanel(id) {
+  const el = document.getElementById(id);
+  const willOpen = !el.classList.contains('open');
+  document.querySelectorAll('.panel.open').forEach(x => x.classList.remove('open'));
+  if (willOpen) {
+    el.classList.add('open');
+    if (id === 'panel-char') renderChar();
+    if (id === 'panel-bag') renderBag();
+    if (id === 'panel-map') { const bm = document.getElementById('bigmap'); drawMapOn(bm.getContext('2d'), bm.width, bm.height); }
+    if (id === 'panel-settings') renderSettings();
+  }
+}
+function closePanels() { document.querySelectorAll('.panel.open').forEach(x => x.classList.remove('open')); }
+const REALMS = ['Luyện Khí', 'Trúc Cơ', 'Kim Đan', 'Nguyên Anh', 'Hóa Thần', 'Luyện Hư', 'Hợp Thể', 'Đại Thừa', 'Độ Kiếp'];
+function renderChar() {
+  const me = G().players.get(G().myName); if (!me) return;
+  const realm = REALMS[Math.min(8, Math.floor((me.level - 1) / 10))] || 'Luyện Khí';
+  document.getElementById('char-body').innerHTML = `
+    <div class="row"><span>Đạo hiệu</span><b style="color:#7dff9a">${me.name}</b></div>
+    <div class="row"><span>Tông môn</span><b>Thanh Huyền Tông · Kiếm Các</b></div>
+    <div class="row"><span>Cảnh giới</span><b>${realm} ${me.level}</b></div>
+    <div class="row"><span>Khí huyết</span><b>${Math.ceil(me.hp)} / ${me.maxhp}</b></div>
+    <div class="row"><span>Linh lực</span><b>${Math.ceil(me.mp)} / ${me.maxmp}</b></div>
+    <div class="row"><span>Công kích</span><b>⚔️ ${me.atk || 24}</b></div>
+    <div class="row"><span>Phòng ngự</span><b>🛡️ ${me.def || 8}</b></div>
+    <div class="row"><span>Tu vi</span><b>${fmt(me.tv)} / ${fmt(me.tvNeed)}</b></div>
+    <div class="row"><span>Linh thạch</span><b>💎 ${fmt(me.lt)}</b></div>`;
+}
+function renderBag() {
+  const me = G().players.get(G().myName); if (!me) return;
+  document.getElementById('bag-body').innerHTML = `
+    <div class="bag-item"><div class="ic">🧪</div>
+      <div class="nm">Hồi Khí Đan<small>Hồi 40% khí huyết · còn <b>${me.potions}</b> viên</small></div>
+      <button data-drink>Dùng</button></div>
+    <div class="bag-item"><div class="ic">💎</div>
+      <div class="nm">Linh thạch<small>${fmt(me.lt)} viên — dùng để mua đồ, cường hóa</small></div></div>
+    <div style="color:#66708c;font-size:12px;margin-top:6px">Trang bị sẽ mở ở giai đoạn sau.</div>`;
+  document.querySelector('#bag-body [data-drink]').onclick = () => { G().send({ t: 'potion' }); setTimeout(renderBag, 300); };
+}
+const settings = { sound: true, shake: true };
+function renderSettings() {
+  document.getElementById('settings-body').innerHTML = `
+    <div class="set-row"><span>🔊 Âm thanh</span><button data-k="sound" class="${settings.sound ? 'on' : ''}">${settings.sound ? 'Bật' : 'Tắt'}</button></div>
+    <div class="set-row"><span>📳 Rung màn hình</span><button data-k="shake" class="${settings.shake ? 'on' : ''}">${settings.shake ? 'Bật' : 'Tắt'}</button></div>
+    <div style="color:#66708c;font-size:12px;margin-top:8px">Thiên Kiêu Lộ · P1 Core</div>`;
+  document.querySelectorAll('#settings-body [data-k]').forEach(b => b.onclick = () => {
+    const k = b.dataset.k; settings[k] = !settings[k]; G().applySetting(k, settings[k]); renderSettings();
+  });
+}
+
+// ---------- Chat ----------
+function addChat(name, text) {
+  const log = document.getElementById('chatlog');
+  const d = document.createElement('div');
+  const b = document.createElement('b'); b.textContent = name + ': ';
+  d.appendChild(b); d.appendChild(document.createTextNode(text));
+  log.appendChild(d);
+  while (log.children.length > 6) log.removeChild(log.firstChild);
+}
+function openChat() {
+  closePanels();
+  const w = document.getElementById('chatinput-wrap');
+  w.style.display = 'block';
+  const inp = document.getElementById('chatinput');
+  setTimeout(() => inp.focus(), 50);
+}
+function closeChat(sendIt) {
+  const w = document.getElementById('chatinput-wrap'), inp = document.getElementById('chatinput');
+  if (sendIt && inp.value.trim()) G().send({ t: 'chat', text: inp.value.trim() });
+  inp.value = ''; w.style.display = 'none';
+}
+function chatOpen() { return document.getElementById('chatinput-wrap').style.display === 'block'; }
+
+window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings };
 })();

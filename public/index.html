@@ -35,6 +35,37 @@
   <div id="skillbar"></div>
   <canvas id="minimap" width="110" height="82"></canvas>
   <div id="mutebtn">🔊</div>
+  <!-- Nút menu UI -->
+  <div id="menubtns">
+    <button data-p="panel-char" title="Nhân vật (C)">👤</button>
+    <button data-p="panel-bag" title="Túi đồ (B)">🎒</button>
+    <button data-p="panel-map" title="Bản đồ (M)">🗺️</button>
+    <button id="chatbtn" title="Chat (Enter)">💬</button>
+    <button data-p="panel-settings" title="Cài đặt (Esc)">⚙️</button>
+  </div>
+  <!-- Panel nhân vật -->
+  <div id="panel-char" class="panel">
+    <div class="p-head">👤 Nhân vật <span class="p-x" data-x>✕</span></div>
+    <div class="p-body" id="char-body"></div>
+  </div>
+  <!-- Panel túi đồ -->
+  <div id="panel-bag" class="panel">
+    <div class="p-head">🎒 Túi đồ <span class="p-x" data-x>✕</span></div>
+    <div class="p-body" id="bag-body"></div>
+  </div>
+  <!-- Panel bản đồ lớn -->
+  <div id="panel-map" class="panel">
+    <div class="p-head">🗺️ Quảng Trường Tông Môn <span class="p-x" data-x>✕</span></div>
+    <div class="p-body"><canvas id="bigmap" width="330" height="248"></canvas></div>
+  </div>
+  <!-- Panel cài đặt -->
+  <div id="panel-settings" class="panel">
+    <div class="p-head">⚙️ Cài đặt <span class="p-x" data-x>✕</span></div>
+    <div class="p-body" id="settings-body"></div>
+  </div>
+  <!-- Chat thế giới -->
+  <div id="chatlog"></div>
+  <div id="chatinput-wrap" style="display:none"><input id="chatinput" maxlength="80" placeholder="Nhắn kênh thế giới..."></div>
   <div id="sysmsg"></div>
   <div id="dead-overlay" style="display:none"><div>💀 Đã ngã xuống...<br><span>Hồi sinh sau <b id="dead-count">5</b>s</span></div></div>
   <div id="hint">Chạm: di chuyển · Chạm quái: đánh · Chạm icon: dùng skill</div>

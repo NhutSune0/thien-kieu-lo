@@ -118,6 +118,7 @@ function handle(m) {
   }
   else if (m.t === 'sys') sysMsg(m.text);
   else if (m.t === 'loot') { sysMsg(m.text); SFX.loot(); }
+  else if (m.t === 'chat') UI.addChat(m.name, m.text);
   else if (m.t === 'err') sysMsg('⚠️ ' + m.text);
   else if (m.t === 'leave') players.delete(m.name);
 }
@@ -157,14 +158,14 @@ function spawnFx(m) {
       particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: col, size: 36, spin: 0, trail: true });
     }
     fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: m.r || 120, life: 0.5, color: col });
-    SFX.skill(); shake = Math.max(shake, 7);
+    SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 7);
   } else if (m.kind === 'nova') {           // Vạn Kiếm Quy Tông: vòng phi kiếm bung ra
     for (let i = 0; i < 24; i++) {
       const a = (i/24)*Math.PI*2;
       swordParticle(m.x, m.y, a, 520, 0.55, '#8fd8ff', 34);
     }
     fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: m.r, life: 0.6, color: '#8fd8ff' });
-    SFX.skill(); shake = Math.max(shake, 9);
+    SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 9);
   } else if (m.kind === 'line') {           // Khai Thiên: cự kiếm chém dọc đường thẳng
     const n = 9;
     for (let i = 1; i <= n; i++) {
@@ -172,7 +173,7 @@ function spawnFx(m) {
       swordParticle(m.x + Math.cos(m.dir)*d, m.y + Math.sin(m.dir)*d - 30, m.dir, 60, 0.6, '#ffe9a8', 52);
     }
     fxAnims.push({ kind: 'beam', x: m.x, y: m.y, dir: m.dir, len: m.len, w: m.w, life: 0.5, color: '#ffe9a8' });
-    SFX.skill(); shake = Math.max(shake, 12);
+    SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 12);
   } else if (m.kind === 'shield') {         // Kim Chung: chuông vàng
     fxAnims.push({ kind: 'shield', x: m.x, y: m.y, life: m.dur, color: '#ffd97a' });
   } else if (m.kind === 'heal') {
@@ -414,6 +415,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 document.getElementById('mutebtn').addEventListener('pointerdown', e => {
   e.stopPropagation();
   muted = !muted;
+  UI.settings.sound = !muted;
   document.getElementById('mutebtn').textContent = muted ? '🔇' : '🔊';
 });
 // Dùng pointerdown để cả chuột và chạm màn hình đều ăn
@@ -437,9 +439,35 @@ cv.addEventListener('pointerdown', e => {
 addEventListener('keydown', e => {
   if (document.getElementById('game').classList.contains('hidden')) return;
   const k = e.key.toLowerCase();
+  if (UI.chatOpen()) { // đang gõ chat: Enter gửi, Esc đóng
+    if (e.key === 'Enter') UI.closeChat(true);
+    else if (e.key === 'Escape') UI.closeChat(false);
+    return;
+  }
   if (k >= '1' && k <= '6') { const id = ORDER[+k - 1]; if (id) UI.trySkill(id); }
   else if (k === 'q') send({ t: 'potion' });
+  else if (k === 'c') UI.togglePanel('panel-char');
+  else if (k === 'b') UI.togglePanel('panel-bag');
+  else if (k === 'm') UI.togglePanel('panel-map');
+  else if (k === 'enter') UI.openChat();
+  else if (k === 'escape') UI.closePanels();
 });
+// Nút menu UI (mobile)
+document.getElementById('menubtns').addEventListener('pointerdown', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  e.stopPropagation();
+  if (b.id === 'chatbtn') UI.openChat();
+  else UI.togglePanel(b.dataset.p);
+});
+document.querySelectorAll('.p-x').forEach(x => x.addEventListener('pointerdown', e => { e.stopPropagation(); UI.closePanels(); }));
+document.getElementById('chatinput').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter') UI.closeChat(true);
+  else if (e.key === 'Escape') UI.closeChat(false);
+});
+function applySetting(k, v) {
+  if (k === 'sound') { muted = !v; document.getElementById('mutebtn').textContent = v ? '🔊' : '🔇'; }
+}
 
 // ---------- Khởi động ----------
 document.getElementById('join-btn').onclick = async () => {
@@ -453,5 +481,5 @@ document.getElementById('join-btn').onclick = async () => {
   connect(name);
   requestAnimationFrame(loop);
 };
-window.__game = { get myName() { return myName; }, players, monsters, send, SKILL_NAMES, get SKILLS() { return SKILLS; }, get ORDER() { return ORDER; } };
+window.__game = { get myName() { return myName; }, players, monsters, send, applySetting, SKILL_NAMES, get SKILLS() { return SKILLS; }, get ORDER() { return ORDER; } };
 })();

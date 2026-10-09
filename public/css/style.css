@@ -25,6 +25,41 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; f
 #cv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
 #mutebtn { position: absolute; top: 100px; right: 10px; font-size: 19px; cursor: pointer;
   background: rgba(10,14,30,.7); border: 1px solid #4a5a8a; border-radius: 6px; padding: 3px 8px; user-select: none; }
+/* ---- Nút menu UI ---- */
+#menubtns { position: absolute; top: 148px; right: 10px; display: flex; flex-direction: column; gap: 8px; }
+#menubtns button { width: 40px; height: 40px; font-size: 19px; cursor: pointer; border-radius: 8px;
+  background: rgba(10,14,30,.75); border: 1px solid #4a5a8a; }
+#menubtns button:active { transform: scale(.92); }
+/* ---- Panel ---- */
+.panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(.95); width: 340px; max-width: 92vw;
+  max-height: 80vh; overflow: auto; background: rgba(16,22,44,.96); border: 1px solid #4a5a8a; border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6); display: none; z-index: 8; opacity: 0; transition: opacity .15s; }
+.panel.open { display: block; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+.p-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;
+  font-size: 15px; font-weight: bold; color: #ffd97a; border-bottom: 1px solid #2a3560; }
+.p-x { cursor: pointer; color: #8fa0c8; padding: 2px 8px; }
+.p-body { padding: 12px 14px; font-size: 13px; line-height: 1.9; }
+.p-body .row { display: flex; justify-content: space-between; border-bottom: 1px dashed #232c52; padding: 2px 0; }
+.p-body .row b { color: #ffe9b0; font-weight: normal; }
+.p-body .row span { color: #8fa0c8; }
+.bag-item { display: flex; align-items: center; gap: 10px; background: #10162c; border: 1px solid #2a3560;
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.bag-item .ic { font-size: 24px; }
+.bag-item .nm { flex: 1; }
+.bag-item .nm small { display: block; color: #8fa0c8; font-size: 11px; }
+.bag-item button { background: #2a7a3a; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.set-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #232c52; }
+.set-row button { background: #2a3560; color: #fff; border: 1px solid #4a5a8a; border-radius: 6px; padding: 5px 14px; cursor: pointer; }
+.set-row button.on { background: #2a7a3a; border-color: #2a7a3a; }
+/* ---- Chat ---- */
+#chatlog { position: absolute; left: 10px; bottom: 84px; width: 300px; max-width: 70vw; max-height: 150px; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; font-size: 12px; }
+#chatlog div { background: rgba(10,14,30,.72); border-radius: 6px; padding: 3px 9px; margin-top: 4px; color: #e8e4d8;
+  text-shadow: 0 1px 2px #000; animation: fadein .25s; }
+#chatlog div b { color: #7dff9a; }
+#chatinput-wrap { position: absolute; left: 10px; bottom: 84px; width: 300px; max-width: 70vw; z-index: 9; }
+#chatinput { width: 100%; padding: 9px 12px; font-size: 14px; background: rgba(16,22,44,.95); color: #fff;
+  border: 1px solid #ffd97a; border-radius: 8px; outline: none; }
 
 #hud { position: absolute; top: 10px; left: 10px; pointer-events: none; }
 .bars { width: 240px; }
