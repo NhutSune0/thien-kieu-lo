@@ -84,7 +84,7 @@ const INTERACTS = [
   { id: 'la1', type: 'la', x: 1580, y: 1420 }, { id: 'la2', type: 'la', x: 1820, y: 1420 },
   { id: 'la3', type: 'la', x: 1580, y: 1600 }, { id: 'la4', type: 'la', x: 1820, y: 1600 },
   { id: 'la5', type: 'la', x: 1700, y: 1690 },
-  { id: 'gieng', type: 'gieng', x: 2400, y: 1200 },
+  { id: 'gieng', type: 'gieng', x: 2280, y: 1230 },
 ];
 { // 12 gốc thảo quanh Dược Trần Tử: 10 tươi + 2 héo (vị trí 3 và 8)
   const cx = 2140, cy = 1500;
