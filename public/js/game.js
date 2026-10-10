@@ -113,12 +113,14 @@ function handle(m) {
     npcs = m.npcs || []; myQuest = m.quest || { active: null, done: [] };
     myMap = m.map || 'tong-mon'; portals = m.portals || [];
     document.getElementById('mapname').textContent = '🗺️ ' + (m.mapName || 'Thanh Huyền Tông');
+    document.getElementById('panel-map-name').textContent = m.mapName || 'Thanh Huyền Tông';
     INTERACTS.clear(); (m.interacts || []).forEach(it => INTERACTS.set(it.id, it));
     collected = new Set(m.collected || []);
     UI.buildSkills(); UI.updateMe(m.you); UI.updateQuest();
   } else if (m.t === 'mapchange') { // sang map mới: cập nhật dữ liệu, xóa entity cũ chờ snapshot
     myMap = m.map; npcs = m.npcs || []; portals = m.portals || [];
     document.getElementById('mapname').textContent = '🗺️ ' + (m.mapName || m.map);
+    document.getElementById('panel-map-name').textContent = m.mapName || m.map;
     INTERACTS.clear(); (m.interacts || []).forEach(it => INTERACTS.set(it.id, it));
     monsters.clear(); players.clear(); pendingPortal = null;
     dyingMobs.clear(); dmgNums.length = 0;
@@ -692,7 +694,11 @@ setInterval(() => { // vòng auto 400ms
   if (!qNpc && !act) { const n = npcs.find(x => qm[x.id] === '!'); if (n) { qNpc = n; qKind = 'accept'; } }
   if (!qNpc && act && !act.done && act.talkNpc) { const n = npcs.find(x => x.id === act.talkNpc); if (n) { qNpc = n; qKind = 'talk'; } }
   if (qNpc) {
-    if (qNpc.map !== myMap) { goToMap(qNpc.map); return; } // NPC ở map khác -> qua cổng
+    // Chỉ tự qua map khác khi đi TRẢ nhiệm vụ ('?'); nhận/nói chuyện thì để người chơi tự đi (đỡ bị lôi đi farm giữa chừng)
+    if (qNpc.map !== myMap && qKind !== 'turnin') qNpc = null;
+  }
+  if (qNpc) {
+    if (qNpc.map !== myMap) { goToMap(qNpc.map); return; } // qua cổng trả NV
     if (qKind === 'turnin') { if (nearNpc(qNpc)) send({ t: 'turnin', quest: act.id }); else goNpc(qNpc); return; }
     if (nearNpc(qNpc)) autoTalk(qNpc); else goNpc(qNpc);
     return;
