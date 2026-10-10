@@ -168,7 +168,7 @@ function updateQuest() {
   const tr = document.getElementById('quest-tracker');
   if (q.active) {
     tr.style.display = 'block';
-    document.getElementById('qt-name').textContent = '📜 ' + q.active.name;
+    document.getElementById('qt-name').textContent = '📜 ' + q.active.id + ' · ' + q.active.name;
     document.getElementById('qt-obj').textContent = q.active.text;
   } else tr.style.display = 'none';
   if (document.getElementById('panel-quest').classList.contains('open')) renderQuestPanel();
@@ -177,7 +177,7 @@ function renderQuestPanel() {
   const q = G().quest || { active: null, done: [] };
   const doneCount = (q.done || []).length;
   let html = '';
-  if (q.active) html += `<div class="q-active"><b>📜 ${q.active.name}</b><div>${q.active.text}</div></div>`;
+  if (q.active) html += `<div class="q-active"><b>📜 ${q.active.id} · ${q.active.name}</b><div>${q.active.text}</div></div>`;
   else html += `<div style="color:#66708c">Chưa nhận nhiệm vụ nào.<br>Tìm NPC có dấu <b style="color:#ffd94a">!</b> vàng để nhận.</div>`;
   html += `<div style="margin-top:10px;color:#8fa0c8;font-size:12px">Chương 1 · Tạp Dịch Viện: ${doneCount}/6 nhiệm vụ</div>`;
   document.getElementById('quest-body').innerHTML = html;
