@@ -1028,6 +1028,7 @@ setInterval(() => { // vòng auto 400ms
   if (!me || me.dead) return;
   if (UI.chatOpen() || document.querySelector('.panel.open')) return; // đang chat / mở panel thì nghỉ
   if (me.hp < me.maxhp * 0.3 && me.potions > 0) { send({ t: 'potion' }); return; } // tự uống đan
+  if (channelUntil > performance.now()) return; // đang vận công thu thập: đứng yên chờ
   const qm = me.qm || {}, act = myQuest && myQuest.active;
   const nearNpc = n => Math.hypot(n.x - me.x, n.y - me.y) < 130;
   const goNpc = n => send({ t: 'move', x: Math.round(n.x), y: Math.round(n.y) });
@@ -1061,10 +1062,30 @@ setInterval(() => { // vòng auto 400ms
     if (nearNpc(qNpc)) autoTalk(qNpc); else goNpc(qNpc);
     return;
   }
+  // 1b. NV thu thập/tương tác (quét lá, gánh nước, hái thảo): đi tới vật phù hợp
+  if (act && !act.done && act.gather && channelUntil <= performance.now()) {
+    let gIt = null, gd = Infinity;
+    for (const it of INTERACTS.values()) {
+      if (it.map !== myMap || it.type !== act.gather || collected.has(it.id)) continue;
+      const d = Math.hypot(it.x - me.x, it.y - me.y);
+      if (d < gd) { gd = d; gIt = it; }
+    }
+    if (gIt) {
+      if (gd < 130) send({ t: 'interact', id: gIt.id });
+      else send({ t: 'move', x: Math.round(gIt.x), y: Math.round(gIt.y) });
+      return;
+    }
+  }
   // 2. Farm: không có NV cần làm và map hiện tại hết quái -> sang Yêu Thú Sơn Mạch
   // Tìm quái GẦN NHẤT không giới hạn khoảng cách (trước đây giới hạn 1000px nên quái xa là đứng im)
+  const killType = act && !act.done ? act.killMob : null; // NV giết quái chỉ định: ưu tiên đúng loại
   let best = null, bd = Infinity;
-  for (const m of monsters.values()) { const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } }
+  for (const m of monsters.values()) {
+    if (killType && m.type !== killType) continue;
+    const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; }
+  }
+  if (!best && killType) // không thấy đúng loại thì đánh quái thường
+    for (const m of monsters.values()) { const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } }
   if (!best && myMap !== 'yeu-thu') { goToMap('yeu-thu'); return; }
   if (!best) return; // thật sự hết quái, đứng chờ respawn
   if (bd > 110) send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });

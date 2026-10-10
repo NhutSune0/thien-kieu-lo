@@ -409,7 +409,8 @@ function questInfo(p) {
     return { active: { id: a.id, name: q.name, text: 'Về trả nhiệm vụ!', done: true }, done };
   const o = q.objectives[a.step];
   const prog = o.count ? ` (${Math.min(a.count, o.count)}/${o.count})` : '';
-  return { active: { id: a.id, name: q.name, step: a.step, count: a.count, text: o.text + prog, done: false, talkNpc: o.type === 'talk' ? o.npc : null }, done };
+  return { active: { id: a.id, name: q.name, step: a.step, count: a.count, text: o.text + prog, done: false, talkNpc: o.type === 'talk' ? o.npc : null,
+    gather: o.type === 'collect' ? o.item : (o.type === 'interact' ? o.obj : null), killMob: o.type === 'kill' ? o.mob : null }, done };
 }
 // Marker trên đầu NPC: '!' có NV mới, '?' trả được
 function npcMarkers(p) {
@@ -562,7 +563,8 @@ function finishInteract(p) {
   const it = INTERACTS.find(i => i.id === p.channel.id);
   p.channel = null;
   if (!it || p.collected.includes(it.id)) return;
-  p.collected.push(it.id);
+  const withered = it.type === 'linh-thao-heo'; // gốc héo chỉ phạt -1, không mất vĩnh viễn (tránh kẹt NV)
+  if (!withered) p.collected.push(it.id);
   const a = p.quests.active;
   if (it.type === 'gieng') {
     if (a && a.id === 'C1-03' && a.step === 0) { p.carrying = true; advanceStep(p); }
@@ -578,7 +580,7 @@ function finishInteract(p) {
       sendTo(p, { t: 'qprog', active: questInfo(p).active });
     }
   }
-  broadcast({ t: 'gathered', id: it.id });
+  if (!withered) broadcast({ t: 'gathered', id: it.id }); // gốc héo vẫn hiện để hái lại
 }
 
 // ---------- Boss Thiết Bì Dã Trư (C1-06) ----------
