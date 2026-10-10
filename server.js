@@ -826,9 +826,17 @@ setInterval(() => {
       const t = m.target;
       if (!t || t.dead || dist(m, t) > m.cfg.aggro * 1.6) { m.state = 'idle'; m.target = null; continue; }
       const d = dist(m, t);
-      if (d < 44) {
-        if (now - m.atkAt > 1000) { m.atkAt = now; hurtPlayer(t, m.cfg.dmg * (0.9 + Math.random()*0.2)); broadcast({ t: 'fx', kind: 'hit', x: Math.round(t.x), y: Math.round(t.y), by: t.name }); }
+      if (d < 48) {
+        if (!m.windupAt && now - m.atkAt > 1000) m.windupAt = now; // giơ vuốt 0.5s — client vẽ vòng đỏ cảnh báo
+        if (m.windupAt && now - m.windupAt >= 500) {
+          m.windupAt = null; m.atkAt = now;
+          if (dist(m, t) < 70) { // vẫn trong tầm mới trúng — né được
+            hurtPlayer(t, m.cfg.dmg * (0.9 + Math.random()*0.2));
+            broadcast({ t: 'fx', kind: 'hit', x: Math.round(t.x), y: Math.round(t.y), by: t.name });
+          }
+        }
       } else {
+        m.windupAt = null;
         m.x += (t.x - m.x)/d * m.cfg.speed*spdMul*dt; m.y += (t.y - m.y)/d * m.cfg.speed*spdMul*dt;
       }
     }
@@ -841,7 +849,7 @@ setInterval(() => {
       ps: [...players.values()].filter(q => q.map === pl.map).map(pubPlayer),
       ms: [...monsters.values()].filter(m => !m.dead && m.map === pl.map)
         .map(m => ({ id: m.id, type: m.type, x: Math.round(m.x), y: Math.round(m.y), hp: Math.ceil(m.hp), maxhp: m.maxhp,
-          stun: now < m.stunUntil, slow: now < m.slowUntil })),
+          stun: now < m.stunUntil, slow: now < m.slowUntil, windup: !!m.windupAt })),
     };
     ws.send(JSON.stringify(snap));
   }

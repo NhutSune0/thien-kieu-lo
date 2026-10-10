@@ -20,6 +20,7 @@ let INTERACTS = new Map(), collected = new Set();
 let channelUntil = 0, channelDur = 1;
 let pendingTalk = null, pendingInteract = null, pendingAutoTalk = null, lastAutoTalk = 0; // npc/vật đang muốn tới
 let autoOn = false, burstFx = null;
+let whiteFlashUntil = 0; // chớp trắng toàn màn hình khi tung ultimate
 const atkAnim = new Map(), castAnim = new Map();   // name -> timestamp kết thúc anim đánh/vận công
 const hitFlash = new Map(), hitPop = new Map();    // mid -> timestamp flash/nảy khi trúng đòn
 const dyingMobs = new Map();                        // mid -> mob đang ngã xuống (fade out)
@@ -162,7 +163,18 @@ function handle(m) {
   }
   else if (m.t === 'mdie') {
     const mb = monsters.get(m.mid);
-    if (mb) { mb.dying = performance.now() + 450; dyingMobs.set(m.mid, mb); } // ngã xuống fade dần
+    if (mb) {
+      mb.dying = performance.now() + 450; dyingMobs.set(m.mid, mb); // ngã xuống fade dần
+      const mx = mb.rx !== undefined ? mb.rx : mb.x, my = mb.ry !== undefined ? mb.ry : mb.y;
+      const n = mb.type === 'thiet-bi-da-tru' ? 30 : 14; // boss nổ to hơn
+      for (let i = 0; i < n; i++) { // nổ tung mảnh pixel
+        const a = Math.random()*Math.PI*2, sp = 120 + Math.random()*300;
+        particles.push({ x: mx + (Math.random()-0.5)*30, y: my - 40 + (Math.random()-0.5)*30,
+          vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 160, ang: Math.random()*6, spin: (Math.random()-0.5)*10,
+          life: 0.8, maxLife: 0.8, color: ['#ff5a5a','#ffb060','#ffffff','#c9a06a'][i % 4], size: 7 + Math.random()*9, chunk: true });
+      }
+      if (mb.type === 'thiet-bi-da-tru') { shake = Math.max(shake, 14); hitStop = Math.max(hitStop, 0.22); }
+    }
     monsters.delete(m.mid);
     SFX.die();
   }
@@ -241,6 +253,22 @@ function spawnFx(m) {
   if (sid && SKILL_NAMES[sid] && m.kind !== 'hit' && m.kind !== 'slash') {
     fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 190, text: SKILL_NAMES[sid], life: 2.5, maxLife: 2.5 });
   }
+  // Sóng xung kích lan ra từ chân khi tung skill
+  if (sid && m.kind !== 'hit' && m.kind !== 'slash') {
+    fxAnims.push({ kind: 'shock', x: m.x, y: m.y, life: 0.5, maxLife: 0.5, color: m.vis === 'talisman' ? '#ffd94a' : m.vis === 'formation' ? '#6adce8' : m.vis === 'danfire' ? '#7dff9a' : '#bfe9ff' });
+  }
+  // Ultimate (cd >= 60s): chớp trắng màn hình + rung mạnh + khựng hình
+  const isUlt = sid && SKILLS[sid] && (SKILLS[sid].cd || 0) >= 60;
+  if (isUlt) {
+    whiteFlashUntil = now + 380;
+    if (UI.settings.shake) shake = Math.max(shake, 20);
+    hitStop = Math.max(hitStop, 0.22);
+    for (let i = 0; i < 24; i++) { // thêm chùm tia lửa ultimate
+      const a = Math.random()*Math.PI*2, sp = 300 + Math.random()*500;
+      particles.push({ x: m.x, y: m.y - 60, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 100, ang: 0,
+        life: 0.7, maxLife: 0.7, color: ['#ffffff','#ffd94a','#bfe9ff'][i % 3], size: 10, dot: true, glow: true });
+    }
+  }
   // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
   if (sid && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
   if (m.kind === 'slash') {
@@ -259,7 +287,7 @@ function spawnFx(m) {
     }
   } else if (m.kind === 'aoe' || m.kind === 'rain') { // nổ vùng: kiếm / phù / trận / đan hỏa
     const vis = m.vis || 'sword';
-    const n = m.kind === 'rain' ? 34 : 18;
+    const n = m.kind === 'rain' ? (sid === 'van-phu-trieu-tong' ? 52 : 34) : 18;
     const col = vis === 'talisman' ? '#ff9d3d' : vis === 'formation' ? '#6adce8' : vis === 'danfire' ? '#3ddc74'
       : (sid === 'cuu-loi-kiem' ? '#c07dff' : '#ff7a3d');
     for (let i = 0; i < n; i++) {
@@ -331,7 +359,12 @@ function spawnFx(m) {
       fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: 90, life: 0.5, color: '#7dff9a' });
     }
   } else if (m.kind === 'hit') {
-    fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 20, r: 26, life: 0.15, color: '#ff5a5a' });
+    fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 20, r: 44, life: 0.2, color: '#ff5a5a' });
+    for (let i = 0; i < 10; i++) { // tia lửa va chạm văng ra
+      const a = Math.random()*Math.PI*2, sp = 200 + Math.random()*280;
+      particles.push({ x: m.x, y: m.y - 30, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 60, ang: 0,
+        life: 0.45, maxLife: 0.45, color: ['#ffd94a','#ff9d3d','#ffffff'][i % 3], size: 8 + Math.random()*6, dot: true });
+    }
     // Tìm con quái gần nhất đang đánh -> cho nó ra đòn thế đánh
     let bm = null, bd = 130;
     for (const mon of monsters.values()) { const d = Math.hypot(mon.x - m.x, mon.y - m.y); if (d < bd) { bd = d; bm = mon; } }
@@ -372,7 +405,7 @@ function drawMob(img, m, scale) {
   const now = performance.now();
   const bob = Math.sin(walkT * 7 + m.id) * 3;
   const sq = Math.sin(walkT * 9 + m.id * 1.7);          // co giãn nhịp nhàng
-  const pop = hitPop.get(m.id) > now ? 1.14 : 1;        // nảy lên khi trúng đòn
+  const pop = hitPop.get(m.id) > now ? 1.28 : 1;        // nảy mạnh khi trúng đòn
   ctx.save();
   ctx.translate(m.rx, m.ry + bob);
   ctx.rotate(Math.sin(walkT * 5 + m.id) * 0.035);        // lắc nhẹ
@@ -451,6 +484,20 @@ function loop(t) {
     draws.push({ y: m.ry, f: () => {
       const isBoss = m.type === 'thiet-bi-da-tru';
       shadow(m.rx, m.ry, isBoss ? 52 : 30);
+      if (m.windup) { // vòng đỏ cảnh báo — quái sắp ra đòn, né ra!
+        const wp = 1 + Math.sin(walkT * 18) * 0.1;
+        ctx.strokeStyle = 'rgba(255,60,60,.95)'; ctx.lineWidth = 3.5; ctx.shadowColor = '#f33'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.ellipse(m.rx, m.ry + 3, (isBoss ? 58 : 36) * wp, (isBoss ? 20 : 13) * wp, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,60,60,.18)';
+        ctx.beginPath(); ctx.ellipse(m.rx, m.ry + 3, (isBoss ? 58 : 36) * wp, (isBoss ? 20 : 13) * wp, 0, 0, Math.PI*2); ctx.fill();
+      }
+      if (isBoss) { // aura đỏ của boss
+        const bp = 1 + Math.sin(walkT * 5) * 0.07;
+        ctx.strokeStyle = 'rgba(255,80,40,.6)'; ctx.lineWidth = 3; ctx.shadowColor = '#f43'; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.ellipse(m.rx, m.ry - 60, 66 * bp, 74 * bp, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
       if (m.slow) { // P3: làm chậm — vòng xanh dưới chân
         ctx.strokeStyle = 'rgba(106,220,232,.8)'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.ellipse(m.rx, m.ry + 3, 34, 12, 0, 0, Math.PI*2); ctx.stroke();
@@ -463,7 +510,7 @@ function loop(t) {
       const bw = isBoss ? 110 : 48, by = isBoss ? m.ry - 205 : m.ry - 118;
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.rx - bw/2, by, bw, 6);
       ctx.fillStyle = isBoss ? '#f80' : '#e33'; ctx.fillRect(m.rx - bw/2, by, bw * (m.hp / m.maxhp), 6);
-      if (isBoss) { ctx.fillStyle = '#ffb060'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🐗 Thiết Bì Dã Trư', m.rx, by - 8); }
+      if (isBoss) { ctx.fillStyle = '#ffb060'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🐗 Thiết Bì Dã Trư', m.rx, by - 10); }
     }});
   }
   // NPC Chương 1: vẽ 1 frame + tên + marker !/? (chỉ NPC cùng map)
@@ -605,6 +652,12 @@ function loop(t) {
       ctx.textBaseline = 'alphabetic';
       ctx.strokeStyle = '#8a6d1c'; ctx.lineWidth = 2; ctx.strokeRect(-s/2, -s/3, s, s*2/3);
     }
+    else if (pt.chunk) { // mảnh pixel văng khi quái chết
+      ctx.rotate((pt.spin || 4) * (pt.maxLife - pt.life));
+      ctx.fillStyle = pt.color;
+      const s = pt.size * (0.5 + 0.5 * a);
+      ctx.fillRect(-s/2, -s/2, s, s);
+    }
     else {
       // Vẽ phi kiếm: thân kiếm + chuôi
       ctx.fillStyle = pt.color; ctx.shadowColor = pt.color; ctx.shadowBlur = 12;
@@ -672,6 +725,13 @@ function loop(t) {
       ctx.fillStyle = g; ctx.shadowColor = '#ffb400'; ctx.shadowBlur = 20;
       ctx.fillText(f.text, 0, 2);
       ctx.textBaseline = 'alphabetic';
+    } else if (f.kind === 'shock') { // sóng xung kích lan ra từ chân
+      const pr = 1 - f.life / (f.maxLife || 0.5);
+      ctx.strokeStyle = f.color; ctx.lineWidth = 5 * (1 - pr) + 1; ctx.shadowColor = f.color; ctx.shadowBlur = 16;
+      ctx.globalAlpha = Math.min(1, a * 2) * (1 - pr);
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, 20 + pr * 130, (20 + pr * 130) * 0.45, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = Math.min(1, a * 2) * (1 - pr) * 0.5;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, 10 + pr * 90, (10 + pr * 90) * 0.45, 0, 0, Math.PI*2); ctx.stroke();
     } else if (f.kind === 'bolt') { // tia sét đánh từ trời xuống
       const segs = 7, pts = [];
       for (let i = 0; i <= segs; i++) pts.push([f.x + (Math.random()-0.5)*46*(i/segs), f.y - 420 + (420/segs)*i]);
@@ -777,6 +837,12 @@ function loop(t) {
   dmgNums = dmgNums.filter(d => d.life > 0);
 
   ctx.restore();
+  // Chớp trắng toàn màn hình khi tung ultimate
+  if (whiteFlashUntil > performance.now()) {
+    const left = whiteFlashUntil - performance.now();
+    ctx.fillStyle = `rgba(255,252,240,${Math.min(0.65, left / 380 * 0.65)})`;
+    ctx.fillRect(0, 0, cv.width, cv.height);
+  }
   // Cinematic bộc phát Hỗn Độn Linh Căn: tối màn hình + 5 luồng sáng ngũ hành xoay + flash trắng
   if (burstFx) {
     const left = burstFx.until - performance.now();
