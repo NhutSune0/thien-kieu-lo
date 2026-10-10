@@ -672,7 +672,8 @@ function castSkill(p, id) {
   if (p.mp < s.mp) { sendTo(p, { t: 'err', text: 'Hết linh lực!' }); return; }
   p.mp -= s.mp; p.cds[id] = now + s.cd * 1000;
   const vis = s.vis || 'sword';
-  const fxm = o => broadcastMap(p.map, Object.assign({ vis, by: p.name }, o));
+  const isUltSkill = (s.cd || 0) >= 60; // ultimate: server đánh dấu để client chắc chắn hiện cinematic
+  const fxm = o => broadcastMap(p.map, Object.assign({ vis, by: p.name }, isUltSkill ? { ult: true } : null, o));
 
   if (s.kind === 'shield') {
     p.shieldUntil = now + s.dur * 1000;
