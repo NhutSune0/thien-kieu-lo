@@ -27,6 +27,44 @@ const PORTALS = [
   { id: 'to-tongmon', from: 'yeu-thu',  x: 1920, y: 2620, to: 'tong-mon', tx: 1920, ty: 2500, label: 'Thanh Huyền Tông' },
 ];
 const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 } }; // điểm an toàn mỗi map
+// Vật cản lớn mỗi map (x, y, r) — quái né khi di chuyển (hồ nước, đá lớn, cây đổ)
+const OBSTACLES = {
+  'yeu-thu': [
+    { x: 1937, y: 1475, rx: 380, ry: 250 }, // hồ nước giữa map
+    { x: 2625, y: 500, r: 90 }, { x: 2725, y: 750, r: 70 },   // cụm đá trên
+    { x: 800, y: 562, r: 80 },                                 // cây đổ trái trên
+    { x: 2825, y: 775, r: 90 }, { x: 2625, y: 812, r: 70 },   // cây đổ phải trên
+    { x: 600, y: 1450, r: 60 }, { x: 875, y: 1650, r: 60 },   // đá trái giữa
+    { x: 1250, y: 1875, r: 65 }, { x: 1275, y: 2400, r: 65 }, // đá giữa-dưới
+    { x: 725, y: 2675, r: 85 },                                // cây đổ trái dưới
+    { x: 1925, y: 2500, r: 65 },                               // đá giữa dưới
+    { x: 2525, y: 625, r: 60 },                                // cây khô
+    { x: 3250, y: 1650, r: 60 },                               // đá phải giữa
+  ],
+};
+// Tránh vật cản: trả về hướng đã chỉnh (đẩy ra + đi vòng)
+function avoidObs(map, x, y, dx, dy) {
+  const obs = OBSTACLES[map];
+  if (!obs) return [dx, dy];
+  let ax = 0, ay = 0;
+  for (const o of obs) {
+    const rx = o.rx || o.r, ry = o.ry || o.r;
+    const ox = x - o.x, oy = y - o.y;
+    const d = Math.hypot(ox / rx, oy / ry); // khoảng cách chuẩn hóa ellipse
+    if (d < 1.6 && d > 0.01) {
+      const push = (1.6 - d) * 1.6;
+      // pháp tuyến ellipse: gradient của (ox/rx)^2 + (oy/ry)^2
+      let nx = ox / (rx * rx), ny = oy / (ry * ry);
+      const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+      ax += nx * push; ay += ny * push;
+      ax += -ny * push * 0.9; ay += nx * push * 0.9; // tiếp tuyến -> đi vòng
+    }
+  }
+  if (!ax && !ay) return [dx, dy];
+  let nx = dx + ax, ny = dy + ay;
+  const nl = Math.hypot(nx, ny) || 1;
+  return [nx / nl, ny / nl];
+}
 
 // ---------- 4 Đường của Thanh Huyền Tông ----------
 const HALLS = {
@@ -811,7 +849,11 @@ setInterval(() => {
       m.wt -= dt;
       if (m.wt <= 0) { m.wx = m.x + (Math.random()-0.5)*300; m.wy = m.y + (Math.random()-0.5)*300; m.wt = 2 + Math.random()*3; }
       const dx = m.wx - m.x, dy = m.wy - m.y, d = Math.hypot(dx, dy);
-      if (d > 5) { m.x += dx/d * m.cfg.speed*0.4*spdMul*dt; m.y += dy/d * m.cfg.speed*0.4*spdMul*dt; }
+      if (d > 5) {
+        let sx = dx / d, sy = dy / d;
+        [sx, sy] = avoidObs(m.map, m.x, m.y, sx, sy); // né địa hình
+        m.x += sx * m.cfg.speed*0.4*spdMul*dt; m.y += sy * m.cfg.speed*0.4*spdMul*dt;
+      }
       // Tìm mục tiêu: chỉ người chơi cùng map
       let best = null, bd = m.cfg.aggro;
       const anchor = MAP_ANCHOR[m.map] || SPAWN;
@@ -837,7 +879,9 @@ setInterval(() => {
         }
       } else {
         m.windupAt = null;
-        m.x += (t.x - m.x)/d * m.cfg.speed*spdMul*dt; m.y += (t.y - m.y)/d * m.cfg.speed*spdMul*dt;
+        let sx = (t.x - m.x)/d, sy = (t.y - m.y)/d;
+        [sx, sy] = avoidObs(m.map, m.x, m.y, sx, sy); // đuổi theo nhưng né địa hình
+        m.x += sx * m.cfg.speed*spdMul*dt; m.y += sy * m.cfg.speed*spdMul*dt;
       }
     }
   }

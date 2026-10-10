@@ -403,12 +403,19 @@ function atkRow(dir) {
 function drawMob(img, m, scale) {
   if (!img) return;
   const now = performance.now();
-  const bob = Math.sin(walkT * 7 + m.id) * 3;
+  // Nhịp bước chân: nhún + nghiêng qua lại theo từng bước (đỡ trượt)
+  const stepPh = walkT * 11 + m.id * 2.3;
+  const stepping = m.moving ? Math.abs(Math.sin(stepPh)) : 0;
+  const bob = m.moving ? -stepping * 8 : Math.sin(walkT * 2.5 + m.id) * 2.5;
+  const tilt = m.moving ? Math.sin(stepPh) * 0.075 : Math.sin(walkT * 5 + m.id) * 0.03;
   const sq = Math.sin(walkT * 9 + m.id * 1.7);          // co giãn nhịp nhàng
   const pop = hitPop.get(m.id) > now ? 1.28 : 1;        // nảy mạnh khi trúng đòn
   ctx.save();
   ctx.translate(m.rx, m.ry + bob);
-  ctx.rotate(Math.sin(walkT * 5 + m.id) * 0.035);        // lắc nhẹ
+  ctx.rotate(tilt);
+  if (m.moving && Math.random() < 0.12) { // bụi ở chân khi chạy
+    particles.push({ x: m.rx + (Math.random()-0.5)*26, y: m.ry - 4, vx: (Math.random()-0.5)*30, vy: -20 - Math.random()*30, ang: 0, life: 0.4, maxLife: 0.4, color: 'rgba(170,160,140,0.6)', size: 8, dot: true });
+  }
   if (hitFlash.get(m.id) > now) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 26; } // chớp trắng khi trúng đòn
   if (m.type === 'thiet-bi-da-tru') { // boss: 1 frame, vẽ cao ~170px
     const k = 170 / img.height, dw = img.width * k, dh = 170;
