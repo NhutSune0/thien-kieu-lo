@@ -297,11 +297,6 @@ wss.on('connection', ws => {
       basicAttack(p);
     } else if (msg.t === 'potion') {
       usePotion(p);
-    } else if (msg.t === 'dbg' && msg.k === 'tkl-dbg-9f3k7') { // TẠM THỜI cho test P3 — XÓA khi xong đợt polish
-      p.level = 5; p.dch = 150; p.maxhp = 270; p.hp = 270; p.maxmp = 155; p.mp = 155; p.atk = 40;
-      p.quests.done = ['C1-01','C1-02','C1-03','C1-04','C1-05','C1-06']; p.quests.active = null;
-      savePlayer(p); refreshQuest(p); sendTo(p, { t: 'me', you: pubPlayer(p) });
-      sendTo(p, { t: 'sys', text: '🔧 Debug: đã cấp điều kiện thăng Ngoại Môn' });
     } else if (msg.t === 'chat') {
       const now = Date.now();
       if (now - (p.lastChat || 0) < 2000) return; // chống spam
