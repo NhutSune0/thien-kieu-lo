@@ -17,6 +17,17 @@ const SPAWN = { x: WORLD_W / 2, y: WORLD_H / 2 };
 const SAFE_R = 520; // vùng an toàn quanh điểm spawn: quái không chủ động đánh người trong này
 const PLAYER_SPEED = 230;                  // px/s (server kiểm tra)
 
+// ---------- 2 map: tông môn (an toàn) + yêu thú (farm) ----------
+const MAPS = {
+  'tong-mon': { name: 'Thanh Huyền Tông' },
+  'yeu-thu':  { name: 'Yêu Thú Sơn Mạch' },
+};
+const PORTALS = [
+  { id: 'to-yeuthu',  from: 'tong-mon', x: 1920, y: 2620, to: 'yeu-thu',  tx: 1920, ty: 2380, label: 'Yêu Thú Sơn Mạch' },
+  { id: 'to-tongmon', from: 'yeu-thu',  x: 1920, y: 2620, to: 'tong-mon', tx: 1920, ty: 2500, label: 'Thanh Huyền Tông' },
+];
+const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 } }; // điểm an toàn mỗi map
+
 // ---------- Skill Kiếm Các Đường (P1) ----------
 const SKILLS = {
   'linh-kiem-tram':      { cd: 3,  mp: 10, range: 430, dmgMul: 1.6, kind: 'bolt',   targets: 1 },
@@ -35,12 +46,12 @@ const MONSTERS = {
   'da-hoa-lang':  { hp: 190, dmg: 24, tv: 85, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 5 },
 };
 
-// ---------- NPC Chương 1 ----------
+// ---------- NPC Chương 1 (đều ở map tông môn) ----------
 const NPCS = {
-  'chap-su-ly':   { name: 'Chấp sự Lý',    x: 1920, y: 1150 },
-  'lao-tran':     { name: 'Lão Trần',       x: 1700, y: 1500 },
-  'duoc-tran-tu': { name: 'Dược Trần Tử',   x: 2140, y: 1500 },
-  'tieu-ho':      { name: 'Trương Tiểu Hổ', x: 1920, y: 1730 },
+  'chap-su-ly':   { name: 'Chấp sự Lý',    x: 1920, y: 1150, map: 'tong-mon' },
+  'lao-tran':     { name: 'Lão Trần',       x: 1700, y: 1500, map: 'tong-mon' },
+  'duoc-tran-tu': { name: 'Dược Trần Tử',   x: 2140, y: 1500, map: 'tong-mon' },
+  'tieu-ho':      { name: 'Trương Tiểu Hổ', x: 1920, y: 1730, map: 'tong-mon' },
 };
 
 // ---------- Nhiệm vụ Chương 1 (chuỗi tuyến tính) ----------
@@ -79,19 +90,19 @@ const QUESTS = {
 };
 const QUEST_ORDER = Object.keys(QUESTS);
 
-// ---------- Vật tương tác (lá, thảo, giếng) ----------
+// ---------- Vật tương tác (lá, thảo, giếng) — đều ở map tông môn ----------
 const INTERACTS = [
-  { id: 'la1', type: 'la', x: 1580, y: 1420 }, { id: 'la2', type: 'la', x: 1820, y: 1420 },
-  { id: 'la3', type: 'la', x: 1580, y: 1600 }, { id: 'la4', type: 'la', x: 1820, y: 1600 },
-  { id: 'la5', type: 'la', x: 1700, y: 1690 },
-  { id: 'gieng', type: 'gieng', x: 2280, y: 1230 },
+  { id: 'la1', type: 'la', x: 1580, y: 1420, map: 'tong-mon' }, { id: 'la2', type: 'la', x: 1820, y: 1420, map: 'tong-mon' },
+  { id: 'la3', type: 'la', x: 1580, y: 1600, map: 'tong-mon' }, { id: 'la4', type: 'la', x: 1820, y: 1600, map: 'tong-mon' },
+  { id: 'la5', type: 'la', x: 1700, y: 1690, map: 'tong-mon' },
+  { id: 'gieng', type: 'gieng', x: 2280, y: 1230, map: 'tong-mon' },
 ];
 { // 12 gốc thảo quanh Dược Trần Tử: 10 tươi + 2 héo (vị trí 3 và 8)
   const cx = 2140, cy = 1500;
   for (let i = 0; i < 12; i++) {
     const a = i * Math.PI * 2 / 12, r = i % 2 ? 190 : 145;
     INTERACTS.push({ id: 'lt' + i, type: (i === 3 || i === 8) ? 'linh-thao-heo' : 'linh-thao',
-      x: Math.round(cx + Math.cos(a) * r), y: Math.round(cy + Math.sin(a) * r) });
+      x: Math.round(cx + Math.cos(a) * r), y: Math.round(cy + Math.sin(a) * r), map: 'tong-mon' });
   }
 }
 
@@ -117,7 +128,7 @@ let midSeq = 1;
 
 function newPlayerState(name) {
   return {
-    name, hall: 'kiem-cac', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
+    name, hall: 'kiem-cac', map: 'tong-mon', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
     tx: null, ty: null, moving: false,
     level: 1, tv: 0, hp: 120, maxhp: 120, mp: 80, maxmp: 80,
     atk: 24, def: 8, lt: 20, potions: 3,
@@ -137,29 +148,50 @@ function savePlayer(p) {
   try { fs.writeFileSync(path.join(SAVE_DIR, p.name + '.json'), JSON.stringify(p)); } catch(e) {}
 }
 
-function spawnMonster(type, initial) {
+function spawnMonster(type, map, initial) {
   const cfg = MONSTERS[type];
+  map = map || 'yeu-thu';
+  const anchor = MAP_ANCHOR[map] || SPAWN;
   const m = {
-    id: midSeq++, type, cfg,
+    id: midSeq++, type, cfg, map,
     x: 200 + Math.random() * (WORLD_W - 400),
     y: 200 + Math.random() * (WORLD_H - 400),
     hp: cfg.hp, maxhp: cfg.hp,
     state: 'idle', wx: 0, wy: 0, wt: 0, target: null, atkAt: 0, dead: false, respawnAt: 0,
   };
-  if (!initial) { m.x = WORLD_W/2 + (Math.random()-0.5)*1600; m.y = WORLD_H/2 + (Math.random()-0.5)*1200; }
-  // Đẩy quái ra khỏi vùng an toàn quanh điểm spawn
+  if (!initial) { m.x = anchor.x + (Math.random()-0.5)*1600; m.y = anchor.y + (Math.random()-0.5)*1200; }
+  // Đẩy quái ra khỏi vùng an toàn quanh điểm đáp của map
   {
-    const dx = m.x - SPAWN.x, dy = m.y - SPAWN.y, d = Math.hypot(dx, dy);
-    if (d < 650) { const a = d > 1 ? Math.atan2(dy, dx) : Math.random()*Math.PI*2; m.x = SPAWN.x + Math.cos(a)*650; m.y = SPAWN.y + Math.sin(a)*650; }
+    const dx = m.x - anchor.x, dy = m.y - anchor.y, d = Math.hypot(dx, dy);
+    if (d < 650) { const a = d > 1 ? Math.atan2(dy, dx) : Math.random()*Math.PI*2; m.x = anchor.x + Math.cos(a)*650; m.y = anchor.y + Math.sin(a)*650; }
   }
   monsters.set(m.id, m);
   return m;
 }
-// Spawn ban đầu
-for (const [t, c] of Object.entries(MONSTERS)) for (let i = 0; i < c.count; i++) spawnMonster(t, true);
+// Spawn ban đầu: 25 quái trên map Yêu Thú Sơn Mạch
+for (const [t, c] of Object.entries(MONSTERS)) for (let i = 0; i < c.count; i++) spawnMonster(t, 'yeu-thu', true);
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// ---------- Dữ liệu theo map gửi client ----------
+const npcsFor = () => Object.entries(NPCS).map(([id, n]) => ({ id, name: n.name, x: n.x, y: n.y, map: n.map }));
+const interactsFor = map => INTERACTS.filter(i => i.map === map);
+const portalsFor = map => PORTALS.filter(q => q.from === map).map(q => ({ id: q.id, x: q.x, y: q.y, to: q.to, label: q.label }));
+function sendMapData(p) { // gửi khi vào map mới
+  sendTo(p, { t: 'mapchange', map: p.map, mapName: MAPS[p.map].name,
+    npcs: npcsFor(), interacts: interactsFor(p.map), portals: portalsFor(p.map) });
+}
+function usePortal(p, id) {
+  const pt = PORTALS.find(q => q.id === id);
+  if (!pt || pt.from !== p.map) return;
+  if (Math.hypot(p.x - pt.x, p.y - pt.y) > 160) { sendTo(p, { t: 'err', text: 'Lại gần cổng hơn đã!' }); return; }
+  p.map = pt.to; p.x = pt.tx; p.y = pt.ty;
+  p.moving = false; p.tx = p.ty = null; p.channel = null;
+  sendMapData(p);
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  sendTo(p, { t: 'sys', text: `🌀 Đã đến [${MAPS[p.map].name}]` });
+}
 
 // ---------- WebSocket ----------
 const wss = new WebSocket.Server({ server });
@@ -171,13 +203,15 @@ wss.on('connection', ws => {
       const name = String(msg.name || '').trim().slice(0, 16) || 'Vô Danh';
       const st = loadPlayer(name);
       st.dead = false;
+      st.map = 'tong-mon'; // về tông môn an toàn khi đăng nhập
       st.x = SPAWN.x; st.y = SPAWN.y; // về điểm spawn an toàn
       st.protectUntil = Date.now() + 5000; // bảo hộ 5s lúc mới vào
       st.channel = null; st.carrying = false; // reset trạng thái vận công/gánh nước
       players.set(ws, st); ws._p = st;
       ws.send(JSON.stringify({ t: 'welcome', you: pubPlayer(st), skills: SKILLS, order: SKILL_ORDER,
-        npcs: Object.entries(NPCS).map(([id, n]) => ({ id, name: n.name, x: n.x, y: n.y })),
-        quest: questInfo(st), interacts: INTERACTS, collected: st.collected }));
+        map: st.map, mapName: MAPS[st.map].name,
+        npcs: npcsFor(), quest: questInfo(st), interacts: interactsFor(st.map),
+        portals: portalsFor(st.map), collected: st.collected }));
       broadcast({ t: 'sys', text: `${name} đã vào tông môn.` }, ws);
       return;
     }
@@ -209,6 +243,8 @@ wss.on('connection', ws => {
       turninQuest(p, String(msg.quest));
     } else if (msg.t === 'interact') {
       startInteract(p, String(msg.id));
+    } else if (msg.t === 'portal') {
+      usePortal(p, String(msg.id));
     }
   });
   ws.on('close', () => {
@@ -362,6 +398,7 @@ function gatherable(p, it) {
 function startInteract(p, id) {
   const it = INTERACTS.find(i => i.id === id);
   if (!it || p.channel) return;
+  if (it.map !== p.map) return; // vật ở map khác
   if (p.collected.includes(id)) return;
   if (Math.hypot(p.x - it.x, p.y - it.y) > 130) { sendTo(p, { t: 'err', text: 'Lại gần hơn đã!' }); return; }
   if (!gatherable(p, it)) { sendTo(p, { t: 'err', text: 'Chưa cần thứ này.' }); return; }
@@ -396,6 +433,7 @@ function spawnBoss(x, y, nearP) {
   for (const m of monsters.values()) if (!m.dead && m.boss) return m; // chỉ 1 boss mỗi lúc
   const cfg = { hp: 1500, dmg: 35, tv: 300, ltMin: 20, ltMax: 20, speed: 150, aggro: 9999 };
   const m = { id: midSeq++, type: 'thiet-bi-da-tru', cfg, boss: true, bursted: false,
+    map: nearP ? nearP.map : 'tong-mon',
     x: clamp(x, 200, WORLD_W - 200), y: clamp(y, 200, WORLD_H - 200),
     hp: cfg.hp, maxhp: cfg.hp, state: 'chase', wx: 0, wy: 0, wt: 0,
     target: nearP || null, atkAt: 0, dead: false, respawnAt: 0 };
@@ -404,10 +442,10 @@ function spawnBoss(x, y, nearP) {
   return m;
 }
 
-// ---------- Chiến đấu ----------
-function nearestMonsters(x, y, range, n) {
+// ---------- Chiến đấu (chỉ quái cùng map với người chơi) ----------
+function nearestMonsters(x, y, range, n, map) {
   return [...monsters.values()]
-    .filter(m => !m.dead && dist({x,y}, m) <= range)
+    .filter(m => !m.dead && m.map === map && dist({x,y}, m) <= range)
     .sort((a, b) => dist({x,y}, a) - dist({x,y}, b))
     .slice(0, n);
 }
@@ -467,7 +505,7 @@ function basicAttack(p) {
   const now = Date.now();
   if (now - p.lastAtk < 600) return; // 0.6s/đòn
   p.lastAtk = now;
-  const targets = nearestMonsters(p.x, p.y, 90, 1);
+  const targets = nearestMonsters(p.x, p.y, 90, 1, p.map);
   p.dir = targets.length ? Math.atan2(targets[0].y - p.y, targets[0].x - p.x) : p.dir;
   broadcast({ t: 'fx', kind: 'slash', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name });
   if (targets.length) damageMonster(targets[0], p.atk, p);
@@ -489,31 +527,31 @@ function castSkill(p, id) {
   }
   const dmg = p.atk * s.dmgMul;
   if (s.kind === 'bolt') {
-    const tg = nearestMonsters(p.x, p.y, s.range, s.targets);
+    const tg = nearestMonsters(p.x, p.y, s.range, s.targets, p.map);
     const ang = tg.length ? Math.atan2(tg[0].y - p.y, tg[0].x - p.x) : p.dir;
     p.dir = ang;
     broadcast({ t: 'fx', kind: 'bolt', id, x: Math.round(p.x), y: Math.round(p.y), dir: +ang.toFixed(2), by: p.name });
     tg.forEach(m => damageMonster(m, dmg, p));
   } else if (s.kind === 'aoe') {
-    const tg = nearestMonsters(p.x, p.y, s.range, s.targets);
+    const tg = nearestMonsters(p.x, p.y, s.range, s.targets, p.map);
     tg.forEach(m => {
       damageMonster(m, dmg, p);
       broadcast({ t: 'fx', kind: 'aoe', id, x: Math.round(m.x), y: Math.round(m.y), r: s.radius || 120, by: p.name });
     });
     if (!tg.length) broadcast({ t: 'fx', kind: 'aoe', id, x: Math.round(p.x + Math.cos(p.dir)*200), y: Math.round(p.y + Math.sin(p.dir)*200), r: s.radius || 120, by: p.name });
   } else if (s.kind === 'nova') {
-    const tg = nearestMonsters(p.x, p.y, s.radius, 99);
+    const tg = nearestMonsters(p.x, p.y, s.radius, 99, p.map);
     broadcast({ t: 'fx', kind: 'nova', id, x: Math.round(p.x), y: Math.round(p.y), r: s.radius, by: p.name });
     tg.forEach(m => damageMonster(m, dmg, p));
   } else if (s.kind === 'line') {
-    const tg = nearestMonsters(p.x, p.y, s.range, 99).filter(m => {
+    const tg = nearestMonsters(p.x, p.y, s.range, 99, p.map).filter(m => {
       const dx = m.x - p.x, dy = m.y - p.y;
       const along = dx * Math.cos(p.dir) + dy * Math.sin(p.dir);
       const perp = Math.abs(-dx * Math.sin(p.dir) + dy * Math.cos(p.dir));
       return along > 0 && along <= s.range && perp <= s.width / 2;
     });
     // nếu không có quái, đánh theo hướng đang đứng
-    const targets = tg.length ? tg : nearestMonsters(p.x + Math.cos(p.dir)*s.range/2, p.y + Math.sin(p.dir)*s.range/2, s.width, 99);
+    const targets = tg.length ? tg : nearestMonsters(p.x + Math.cos(p.dir)*s.range/2, p.y + Math.sin(p.dir)*s.range/2, s.width, 99, p.map);
     broadcast({ t: 'fx', kind: 'line', id, x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), len: s.range, w: s.width, by: p.name });
     targets.forEach(m => damageMonster(m, dmg, p));
   }
@@ -548,7 +586,14 @@ setInterval(() => {
   // Người chơi
   for (const p of players.values()) {
     if (p.dead) {
-      if (now >= p.respawnAt) { p.dead = false; p.hp = p.maxhp; p.mp = p.maxmp; p.x = WORLD_W/2; p.y = WORLD_H/2; p.protectUntil = Date.now() + 5000; sendTo(p, { t: 'me', you: pubPlayer(p) }); }
+      if (now >= p.respawnAt) {
+        p.dead = false; p.hp = p.maxhp; p.mp = p.maxmp;
+        const changedMap = p.map !== 'tong-mon';
+        p.map = 'tong-mon'; p.x = WORLD_W/2; p.y = WORLD_H/2; // hồi sinh luôn về tông môn
+        p.protectUntil = Date.now() + 5000;
+        if (changedMap) sendMapData(p);
+        sendTo(p, { t: 'me', you: pubPlayer(p) });
+      }
       continue;
     }
     if (p.moving && p.tx !== null) {
@@ -572,7 +617,7 @@ setInterval(() => {
           const need = [...players.values()].some(pl => pl.quests && pl.quests.active && pl.quests.active.id === 'C1-06');
           if (need) spawnBoss(SPAWN.x + 300, SPAWN.y + 200, null);
           monsters.delete(m.id);
-        } else { const nm = spawnMonster(m.type); monsters.delete(m.id); }
+        } else { const nm = spawnMonster(m.type, m.map); monsters.delete(m.id); }
       }
       continue;
     }
@@ -581,11 +626,13 @@ setInterval(() => {
       if (m.wt <= 0) { m.wx = m.x + (Math.random()-0.5)*300; m.wy = m.y + (Math.random()-0.5)*300; m.wt = 2 + Math.random()*3; }
       const dx = m.wx - m.x, dy = m.wy - m.y, d = Math.hypot(dx, dy);
       if (d > 5) { m.x += dx/d * m.cfg.speed*0.4*dt; m.y += dy/d * m.cfg.speed*0.4*dt; }
-      // Tìm mục tiêu
+      // Tìm mục tiêu: chỉ người chơi cùng map
       let best = null, bd = m.cfg.aggro;
+      const anchor = MAP_ANCHOR[m.map] || SPAWN;
       for (const p of players.values()) {
+        if (p.map !== m.map) continue;
         if (p.dead || Date.now() < p.protectUntil) continue;
-        if (Math.hypot(p.x - SPAWN.x, p.y - SPAWN.y) < SAFE_R) continue; // vùng an toàn: không chủ động đánh
+        if (Math.hypot(p.x - anchor.x, p.y - anchor.y) < SAFE_R) continue; // vùng an toàn: không chủ động đánh
         const dd = dist(m, p); if (dd < bd) { bd = dd; best = p; }
       }
       if (best) { m.state = 'chase'; m.target = best; }
@@ -601,13 +648,16 @@ setInterval(() => {
     }
   }
 
-  // Snapshot 20Hz
-  const snap = { t: 'snap',
-    ps: [...players.values()].map(pubPlayer),
-    ms: [...monsters.values()].filter(m => !m.dead).map(m => ({ id: m.id, type: m.type, x: Math.round(m.x), y: Math.round(m.y), hp: Math.ceil(m.hp), maxhp: m.maxhp })),
-  };
-  const s = JSON.stringify(snap);
-  for (const [ws] of players) if (ws.readyState === 1) ws.send(s);
+  // Snapshot 20Hz: mỗi người chơi chỉ thấy map của mình
+  for (const [ws, pl] of players) {
+    if (ws.readyState !== 1) continue;
+    const snap = { t: 'snap',
+      ps: [...players.values()].filter(q => q.map === pl.map).map(pubPlayer),
+      ms: [...monsters.values()].filter(m => !m.dead && m.map === pl.map)
+        .map(m => ({ id: m.id, type: m.type, x: Math.round(m.x), y: Math.round(m.y), hp: Math.ceil(m.hp), maxhp: m.maxhp })),
+    };
+    ws.send(JSON.stringify(snap));
+  }
 }, TICK);
 
 // Lưu định kỳ 30s

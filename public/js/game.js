@@ -12,6 +12,9 @@ let particles = [], dmgNums = [], fxAnims = [];
 let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
 // P2: NPC, nhiệm vụ, vật tương tác, auto
 let npcs = [], myQuest = { active: null, done: [] };
+// 2 map: tông môn (an toàn) + yêu thú (farm)
+let myMap = 'tong-mon', portals = [];
+let pendingPortal = null, lastPortalSend = 0;
 let INTERACTS = new Map(), collected = new Set();
 let channelUntil = 0, channelDur = 1;
 let pendingTalk = null, pendingInteract = null, pendingAutoTalk = null, lastAutoTalk = 0; // npc/vật đang muốn tới
@@ -77,6 +80,7 @@ function keyOutWhite(img) {
 }
 const ASSETS = [
   ['map', 'assets/map-quang-truong.webp'],
+  ['map_yeuthu', 'assets/map-rung-yeu-thu.webp'],
   ['walk', 'assets/nvc-walk.webp'], ['attack', 'assets/nvc-attack.webp'], ['cast', 'assets/nvc-cast.webp'],
   ['m_hac', 'assets/mob-hac-mao-thu.webp'], ['m_xa', 'assets/mob-thanh-truc-xa.webp'], ['m_lang', 'assets/mob-da-hoa-lang.webp'],
   ['npc_ly', 'assets/npc-chap-su-ly.webp'], ['npc_tran', 'assets/npc-lao-tran.webp'],
@@ -107,9 +111,17 @@ function handle(m) {
     resize();
     SKILLS = m.skills; ORDER = m.order; players.set(m.you.name, m.you);
     npcs = m.npcs || []; myQuest = m.quest || { active: null, done: [] };
+    myMap = m.map || 'tong-mon'; portals = m.portals || [];
+    document.getElementById('mapname').textContent = '🗺️ ' + (m.mapName || 'Thanh Huyền Tông');
     INTERACTS.clear(); (m.interacts || []).forEach(it => INTERACTS.set(it.id, it));
     collected = new Set(m.collected || []);
     UI.buildSkills(); UI.updateMe(m.you); UI.updateQuest();
+  } else if (m.t === 'mapchange') { // sang map mới: cập nhật dữ liệu, xóa entity cũ chờ snapshot
+    myMap = m.map; npcs = m.npcs || []; portals = m.portals || [];
+    document.getElementById('mapname').textContent = '🗺️ ' + (m.mapName || m.map);
+    INTERACTS.clear(); (m.interacts || []).forEach(it => INTERACTS.set(it.id, it));
+    monsters.clear(); players.clear(); pendingPortal = null;
+    dyingMobs.clear(); dmgNums.length = 0;
   } else if (m.t === 'snap') {
     const seen = new Set();
     for (const s of m.ps) { seen.add(s.name); players.set(s.name, Object.assign(players.get(s.name) || {}, s)); }
@@ -307,8 +319,9 @@ function loop(t) {
   const vy0 = camY - cv.height/2/ZOOM - 100, vy1 = camY + cv.height/2/ZOOM + 100;
   const inView = (x, y) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
 
-  // Map
-  if (IMG.map) ctx.drawImage(IMG.map, 0, 0, WORLD_W, WORLD_H);
+  // Map theo map hiện tại
+  const mapImg = myMap === 'yeu-thu' ? IMG.map_yeuthu : IMG.map;
+  if (mapImg) ctx.drawImage(mapImg, 0, 0, WORLD_W, WORLD_H);
 
   // Gom entity trong tầm nhìn, XẾP THEO Y (đứng dưới vẽ sau = đè lên đúng như game thường)
   const shadow = (x, y, rx) => { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y + 3, rx, rx * 0.32, 0, 0, Math.PI*2); ctx.fill(); };
@@ -325,11 +338,11 @@ function loop(t) {
       if (isBoss) { ctx.fillStyle = '#ffb060'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🐗 Thiết Bì Dã Trư', m.rx, by - 8); }
     }});
   }
-  // NPC Chương 1: vẽ 1 frame + tên + marker !/?
+  // NPC Chương 1: vẽ 1 frame + tên + marker !/? (chỉ NPC cùng map)
   {
     const meQ = players.get(myName);
     for (const n of npcs) {
-      if (!inView(n.x, n.y)) continue;
+      if (n.map !== myMap || !inView(n.x, n.y)) continue;
       draws.push({ y: n.y, f: () => {
         const img = IMG[NPC_IMG[n.id]];
         shadow(n.x, n.y, 26);
@@ -347,6 +360,23 @@ function loop(t) {
         }
       }});
     }
+  }
+  // Cổng truyền tống: vòng cyan puls + emoji 🌀 + tên map đích
+  for (const pt of portals) {
+    if (!inView(pt.x, pt.y)) continue;
+    draws.push({ y: pt.y, f: () => {
+      const pulse = 1 + Math.sin(walkT * 4) * 0.12;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(120,230,255,.9)'; ctx.lineWidth = 4;
+      ctx.shadowColor = '#66aaff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(pt.x, pt.y - 30, 34 * pulse, 0, Math.PI*2); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.font = '36px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('🌀', pt.x, pt.y - 16);
+      ctx.fillStyle = '#bfe9ff'; ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(pt.label || '', pt.x, pt.y + 28);
+      ctx.restore();
+    }});
   }
   // Vật tương tác: lá / thảo / giếng (vẽ emoji)
   for (const it of INTERACTS.values()) {
@@ -520,6 +550,17 @@ function loop(t) {
     else if (Math.hypot(it.x - me.x, it.y - me.y) < 130) { send({ t: 'interact', id: it.id }); pendingInteract = null; }
     else if (!me.moving) send({ t: 'move', x: Math.round(it.x), y: Math.round(it.y) });
   }
+  // Tự qua cổng khi đã lại gần
+  if (pendingPortal && me && !me.dead) {
+    const pt = portals.find(x => x.id === pendingPortal);
+    if (!pt) pendingPortal = null;
+    else if (Math.hypot(pt.x - me.x, pt.y - me.y) < 130) {
+      const now = Date.now();
+      if (now - lastPortalSend > 2000) { lastPortalSend = now; send({ t: 'portal', id: pt.id }); }
+      pendingPortal = null;
+    }
+    else if (!me.moving) send({ t: 'move', x: Math.round(pt.x), y: Math.round(pt.y) });
+  }
 }
 
 // ---------- Input ----------
@@ -540,7 +581,7 @@ cv.addEventListener('pointerdown', e => {
   const wx = camX + (e.clientX - cv.width/2) / ZOOM;
   const wy = camY + (e.clientY - cv.height/2) / ZOOM;
   fxAnims.push({ kind: 'click', x: wx, y: wy, life: 0.35 }); // ripple báo đã nhận lệnh
-  pendingAtk = null; pendingTalk = null; pendingInteract = null; pendingAutoTalk = null;
+  pendingAtk = null; pendingTalk = null; pendingInteract = null; pendingAutoTalk = null; pendingPortal = null;
   // 1. Click NPC -> lại gần rồi nói chuyện
   let bn = null, bd = 70 / ZOOM;
   for (const n of npcs) { const d = Math.hypot(n.x - wx, n.y - wy); if (d < bd) { bd = d; bn = n; } }
@@ -558,6 +599,14 @@ cv.addEventListener('pointerdown', e => {
   if (bi) {
     pendingInteract = bi.id;
     send({ t: 'move', x: Math.round(bi.x), y: Math.round(bi.y) });
+    return;
+  }
+  // 2b. Click cổng -> lại gần rồi chuyển map
+  let bp = null, pd = 80 / ZOOM;
+  for (const pt of portals) { const d = Math.hypot(pt.x - wx, pt.y - wy); if (d < pd) { pd = d; bp = pt; } }
+  if (bp) {
+    pendingPortal = bp.id;
+    send({ t: 'move', x: Math.round(bp.x), y: Math.round(bp.y) });
     return;
   }
   // 3. Click trúng quái -> tự chạy lại gần rồi đánh (như game thường)
@@ -626,24 +675,32 @@ setInterval(() => { // vòng auto 400ms
     const now = Date.now();
     if (pendingAutoTalk !== n.id && now - lastAutoTalk > 3000) { pendingAutoTalk = n.id; lastAutoTalk = now; send({ t: 'talk', npc: n.id }); }
   };
-  // 1. Tự trả NV: tìm NPC có '?'
-  if (act && act.done) {
-    const n = npcs.find(x => qm[x.id] === '?');
-    if (n) { if (nearNpc(n)) send({ t: 'turnin', quest: act.id }); else goNpc(n); return; }
+  // Đi qua cổng sang map đích (dùng cho Auto) — trả về true nếu đã xử lý
+  const goToMap = targetMap => {
+    if (targetMap === myMap) return false;
+    const pt = portals.find(x => x.to === targetMap);
+    if (!pt) return false;
+    if (Math.hypot(pt.x - me.x, pt.y - me.y) < 130) {
+      const now = Date.now();
+      if (now - lastPortalSend > 2000) { lastPortalSend = now; send({ t: 'portal', id: pt.id }); }
+    } else send({ t: 'move', x: Math.round(pt.x), y: Math.round(pt.y) });
+    return true;
+  };
+  // 1. NV: tìm NPC mục tiêu (trả '?' -> nhận '!' -> nói chuyện theo mục tiêu)
+  let qNpc = null, qKind = null;
+  if (act && act.done) { const n = npcs.find(x => qm[x.id] === '?'); if (n) { qNpc = n; qKind = 'turnin'; } }
+  if (!qNpc && !act) { const n = npcs.find(x => qm[x.id] === '!'); if (n) { qNpc = n; qKind = 'accept'; } }
+  if (!qNpc && act && !act.done && act.talkNpc) { const n = npcs.find(x => x.id === act.talkNpc); if (n) { qNpc = n; qKind = 'talk'; } }
+  if (qNpc) {
+    if (qNpc.map !== myMap) { goToMap(qNpc.map); return; } // NPC ở map khác -> qua cổng
+    if (qKind === 'turnin') { if (nearNpc(qNpc)) send({ t: 'turnin', quest: act.id }); else goNpc(qNpc); return; }
+    if (nearNpc(qNpc)) autoTalk(qNpc); else goNpc(qNpc);
+    return;
   }
-  // 2. Tự nhận NV: tìm NPC có '!'
-  if (!act) {
-    const n = npcs.find(x => qm[x.id] === '!');
-    if (n) { if (nearNpc(n)) autoTalk(n); else goNpc(n); return; }
-  }
-  // 3. Tự nói chuyện theo mục tiêu NV (vd C1-01 gặp Dược Trần Tử)
-  if (act && !act.done && act.talkNpc) {
-    const n = npcs.find(x => x.id === act.talkNpc);
-    if (n) { if (nearNpc(n)) autoTalk(n); else goNpc(n); return; }
-  }
-  // 4. Đánh quái như cũ
+  // 2. Farm: không có NV cần làm và map hiện tại hết quái -> sang Yêu Thú Sơn Mạch
   let best = null, bd = 1000;
   for (const m of monsters.values()) { const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } }
+  if (!best && myMap !== 'yeu-thu') { goToMap('yeu-thu'); return; }
   if (!best) return;
   if (bd > 110) send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });
   else send({ t: 'attack' });
@@ -663,5 +720,6 @@ document.getElementById('join-btn').onclick = async () => {
 };
 window.__game = { get myName() { return myName; }, players, monsters, send, applySetting, setAuto,
   get quest() { return myQuest; }, get npcs() { return npcs; }, NPC_PORTRAIT,
+  get myMap() { return myMap; }, get portals() { return portals; },
   SKILL_NAMES, get SKILLS() { return SKILLS; }, get ORDER() { return ORDER; } };
 })();
