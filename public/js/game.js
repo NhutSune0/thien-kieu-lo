@@ -14,7 +14,7 @@ let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
 let npcs = [], myQuest = { active: null, done: [] };
 let INTERACTS = new Map(), collected = new Set();
 let channelUntil = 0, channelDur = 1;
-let pendingTalk = null, pendingInteract = null; // npc/vật đang muốn tới
+let pendingTalk = null, pendingInteract = null, pendingAutoTalk = null, lastAutoTalk = 0; // npc/vật đang muốn tới
 let autoOn = false, burstFx = null;
 const atkAnim = new Map(), castAnim = new Map();   // name -> timestamp kết thúc anim đánh/vận công
 const hitFlash = new Map(), hitPop = new Map();    // mid -> timestamp flash/nảy khi trúng đòn
@@ -141,7 +141,13 @@ function handle(m) {
   else if (m.t === 'err') sysMsg('⚠️ ' + m.text);
   else if (m.t === 'leave') players.delete(m.name);
   // P2: nhiệm vụ / NPC / thu thập / burst
-  else if (m.t === 'dlg') UI.showDlg(m);
+  else if (m.t === 'dlg') {
+    if (pendingAutoTalk === m.npc) { // Auto tự nói chuyện: không mở panel, tự nhận/trả luôn
+      pendingAutoTalk = null;
+      if (m.canAccept) send({ t: 'accept', quest: m.qid });
+      else if (m.canTurnin) send({ t: 'turnin', quest: m.qid });
+    } else UI.showDlg(m);
+  }
   else if (m.t === 'quest') { myQuest = { active: m.active, done: m.done }; UI.updateQuest(); }
   else if (m.t === 'qprog') { myQuest.active = m.active; UI.updateQuest(); }
   else if (m.t === 'gathered') { collected.add(m.id); SFX.loot(); }
@@ -534,7 +540,7 @@ cv.addEventListener('pointerdown', e => {
   const wx = camX + (e.clientX - cv.width/2) / ZOOM;
   const wy = camY + (e.clientY - cv.height/2) / ZOOM;
   fxAnims.push({ kind: 'click', x: wx, y: wy, life: 0.35 }); // ripple báo đã nhận lệnh
-  pendingAtk = null; pendingTalk = null; pendingInteract = null;
+  pendingAtk = null; pendingTalk = null; pendingInteract = null; pendingAutoTalk = null;
   // 1. Click NPC -> lại gần rồi nói chuyện
   let bn = null, bd = 70 / ZOOM;
   for (const n of npcs) { const d = Math.hypot(n.x - wx, n.y - wy); if (d < bd) { bd = d; bn = n; } }
@@ -599,9 +605,10 @@ function applySetting(k, v) {
   if (k === 'sound') { muted = !v; document.getElementById('mutebtn').textContent = v ? '🔊' : '🔇'; }
 }
 
-// ---------- Auto: tự động tu luyện ----------
+// ---------- Auto: tự động tu luyện + tự nhận/trả nhiệm vụ ----------
 function setAuto(v) {
   autoOn = v;
+  if (!v) pendingAutoTalk = null;
   const b = document.getElementById('autobtn');
   if (b) b.classList.toggle('on', v);
 }
@@ -612,6 +619,29 @@ setInterval(() => { // vòng auto 400ms
   if (!me || me.dead) return;
   if (UI.chatOpen() || document.querySelector('.panel.open')) return; // đang chat / mở panel thì nghỉ
   if (me.hp < me.maxhp * 0.3 && me.potions > 0) { send({ t: 'potion' }); return; } // tự uống đan
+  const qm = me.qm || {}, act = myQuest && myQuest.active;
+  const nearNpc = n => Math.hypot(n.x - me.x, n.y - me.y) < 130;
+  const goNpc = n => send({ t: 'move', x: Math.round(n.x), y: Math.round(n.y) });
+  const autoTalk = n => {
+    const now = Date.now();
+    if (pendingAutoTalk !== n.id && now - lastAutoTalk > 3000) { pendingAutoTalk = n.id; lastAutoTalk = now; send({ t: 'talk', npc: n.id }); }
+  };
+  // 1. Tự trả NV: tìm NPC có '?'
+  if (act && act.done) {
+    const n = npcs.find(x => qm[x.id] === '?');
+    if (n) { if (nearNpc(n)) send({ t: 'turnin', quest: act.id }); else goNpc(n); return; }
+  }
+  // 2. Tự nhận NV: tìm NPC có '!'
+  if (!act) {
+    const n = npcs.find(x => qm[x.id] === '!');
+    if (n) { if (nearNpc(n)) autoTalk(n); else goNpc(n); return; }
+  }
+  // 3. Tự nói chuyện theo mục tiêu NV (vd C1-01 gặp Dược Trần Tử)
+  if (act && !act.done && act.talkNpc) {
+    const n = npcs.find(x => x.id === act.talkNpc);
+    if (n) { if (nearNpc(n)) autoTalk(n); else goNpc(n); return; }
+  }
+  // 4. Đánh quái như cũ
   let best = null, bd = 1000;
   for (const m of monsters.values()) { const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } }
   if (!best) return;

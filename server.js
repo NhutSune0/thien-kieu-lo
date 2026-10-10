@@ -254,7 +254,7 @@ function questInfo(p) {
     return { active: { id: a.id, name: q.name, text: 'Về trả nhiệm vụ!', done: true }, done };
   const o = q.objectives[a.step];
   const prog = o.count ? ` (${Math.min(a.count, o.count)}/${o.count})` : '';
-  return { active: { id: a.id, name: q.name, step: a.step, count: a.count, text: o.text + prog, done: false }, done };
+  return { active: { id: a.id, name: q.name, step: a.step, count: a.count, text: o.text + prog, done: false, talkNpc: o.type === 'talk' ? o.npc : null }, done };
 }
 // Marker trên đầu NPC: '!' có NV mới, '?' trả được
 function npcMarkers(p) {
