@@ -257,16 +257,17 @@ function spawnFx(m) {
   if (sid && m.kind !== 'hit' && m.kind !== 'slash') {
     fxAnims.push({ kind: 'shock', x: m.x, y: m.y, life: 0.5, maxLife: 0.5, color: m.vis === 'talisman' ? '#ffd94a' : m.vis === 'formation' ? '#6adce8' : m.vis === 'danfire' ? '#7dff9a' : '#bfe9ff' });
   }
-  // Ultimate (cd >= 60s): chớp trắng màn hình + rung mạnh + khựng hình
+  // Ultimate (cd >= 60s): chớp trắng màn hình + rung mạnh + khựng hình (kéo dài để đã mắt)
   const isUlt = sid && SKILLS[sid] && (SKILLS[sid].cd || 0) >= 60;
   if (isUlt) {
-    whiteFlashUntil = now + 380;
-    if (UI.settings.shake) shake = Math.max(shake, 20);
-    hitStop = Math.max(hitStop, 0.22);
-    for (let i = 0; i < 24; i++) { // thêm chùm tia lửa ultimate
-      const a = Math.random()*Math.PI*2, sp = 300 + Math.random()*500;
-      particles.push({ x: m.x, y: m.y - 60, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 100, ang: 0,
-        life: 0.7, maxLife: 0.7, color: ['#ffffff','#ffd94a','#bfe9ff'][i % 3], size: 10, dot: true, glow: true });
+    whiteFlashUntil = now + 750; // chớp trắng 0.75s — không thể hụt
+    if (UI.settings.shake) shake = Math.max(shake, 24);
+    hitStop = Math.max(hitStop, 0.28);
+    fxAnims.push({ kind: 'ultRing', x: m.x, y: m.y, life: 1.0, maxLife: 1.0 }); // vòng sáng ultimate lan rộng
+    for (let i = 0; i < 36; i++) { // chùm tia lửa ultimate dày hơn
+      const a = Math.random()*Math.PI*2, sp = 300 + Math.random()*600;
+      particles.push({ x: m.x, y: m.y - 60, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 120, ang: 0,
+        life: 0.9, maxLife: 0.9, color: ['#ffffff','#ffd94a','#bfe9ff'][i % 3], size: 12, dot: true, glow: true });
     }
   }
   // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
@@ -342,8 +343,8 @@ function spawnFx(m) {
       const d = (m.len/n)*i;
       swordParticle(m.x + Math.cos(m.dir)*d, m.y + Math.sin(m.dir)*d - 30, m.dir, 60, 0.6, '#ffe9a8', 52);
     }
-    fxAnims.push({ kind: 'beam', x: m.x, y: m.y, dir: m.dir, len: m.len, w: (m.w || 130) * 1.6, life: 0.6, color: '#ffe9a8' });
-    fxAnims.push({ kind: 'flash', x: m.x + Math.cos(m.dir)*m.len/2, y: m.y + Math.sin(m.dir)*m.len/2 - 30, r: 130, life: 0.35, color: '#ffffff' });
+    fxAnims.push({ kind: 'beam', x: m.x, y: m.y, dir: m.dir, len: m.len, w: (m.w || 130) * 1.6, life: 1.2, maxLife: 1.2, color: '#ffe9a8' });
+    fxAnims.push({ kind: 'flash', x: m.x + Math.cos(m.dir)*m.len/2, y: m.y + Math.sin(m.dir)*m.len/2 - 30, r: 160, life: 0.6, color: '#ffffff' });
     SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 14);
   } else if (m.kind === 'shield') {         // Kim Chung / Thanh Tâm Đan
     const vis2 = m.vis || 'sword';
@@ -701,6 +702,15 @@ function loop(t) {
       g.addColorStop(0, f.color); g.addColorStop(1, 'transparent');
       ctx.fillStyle = g; ctx.shadowColor = f.color; ctx.shadowBlur = 30;
       ctx.fillRect(0, -f.w/2 * a, f.len, f.w * a);
+    } else if (f.kind === 'ultRing') { // vòng sáng ultimate lan rộng — hoành tráng
+      const pmax = f.maxLife || 1.0, pr = 1 - f.life / pmax;
+      for (let i = 0; i < 3; i++) {
+        const rr = (80 + pr * 420) * (1 - i * 0.18);
+        ctx.strokeStyle = ['#ffffff', '#ffd94a', '#bfe9ff'][i]; ctx.lineWidth = 10 - i * 2;
+        ctx.shadowColor = '#ffd94a'; ctx.shadowBlur = 24;
+        ctx.globalAlpha = Math.min(1, a * 2) * (1 - pr * 0.7);
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, rr, rr * 0.55, 0, 0, Math.PI*2); ctx.stroke();
+      }
     } else if (f.kind === 'shield') {
       ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.shadowColor = f.color; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(f.x, f.y - 52, 38, 0, Math.PI*2); ctx.stroke();
@@ -847,7 +857,7 @@ function loop(t) {
   // Chớp trắng toàn màn hình khi tung ultimate
   if (whiteFlashUntil > performance.now()) {
     const left = whiteFlashUntil - performance.now();
-    ctx.fillStyle = `rgba(255,252,240,${Math.min(0.65, left / 380 * 0.65)})`;
+    ctx.fillStyle = `rgba(255,252,240,${Math.min(0.7, left / 750 * 0.7)})`;
     ctx.fillRect(0, 0, cv.width, cv.height);
   }
   // Cinematic bộc phát Hỗn Độn Linh Căn: tối màn hình + 5 luồng sáng ngũ hành xoay + flash trắng
