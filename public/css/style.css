@@ -80,6 +80,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; f
   background: #2a3560; color: #fff; border: 1px solid #4a5a8a; }
 .dlg-btn.accept { background: #2a7a3a; border-color: #2a7a3a; font-weight: bold; }
 .dlg-btn.turnin { background: #a86a1a; border-color: #a86a1a; font-weight: bold; }
+/* P3: thẻ chọn Đường */
+.hall-card { display: flex; align-items: center; gap: 10px; background: #10162c; border: 1px solid #2a3560;
+  border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+.hall-card .hc-icon { font-size: 34px; }
+.hall-card .hc-info { flex: 1; }
+.hall-card .hc-info b { color: #ffe9b0; font-size: 14px; }
+.hall-card .hc-info small { display: block; color: #b9c2dd; font-size: 11px; line-height: 1.5; margin-top: 2px; }
+.hall-card .hc-cur { color: #7dff9a; font-size: 11px; font-weight: normal; }
+.hall-card button { background: #2a7a3a; color: #fff; border: none; border-radius: 8px;
+  padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.hall-card button.warn { background: #a83232; }
+.hall-card button:disabled { background: #3a4568; cursor: default; }
 .q-active { background: #10162c; border: 1px solid #4a5a8a; border-left: 3px solid #ffd97a; border-radius: 8px; padding: 10px 12px; }
 .q-active b { color: #ffd97a; }
 .q-active div { color: #e8e4d8; margin-top: 4px; }

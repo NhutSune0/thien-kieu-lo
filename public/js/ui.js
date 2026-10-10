@@ -41,7 +41,7 @@ function buildSkills() {
   setTimeout(() => bar.classList.remove('attn'), 6000);
 }
 function iconFile(id) {
-  return { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp','van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp' }[id];
+  return (G().ICONS || {})[id]; // P3: icon theo Đường (server gửi trong welcome/hallskills)
 }
 function trySkill(id) {
   const sk = G().SKILLS[id]; if (!sk) return;
@@ -103,9 +103,14 @@ const REALMS = ['Luyện Khí', 'Trúc Cơ', 'Kim Đan', 'Nguyên Anh', 'Hóa Th
 function renderChar() {
   const me = G().players.get(G().myName); if (!me) return;
   const realm = REALMS[Math.min(8, Math.floor((me.level - 1) / 10))] || 'Luyện Khí';
+  const rankName = (G().RANKS || {})[me.rank] || 'Tạp Vụ';
+  const hallName = (G().HALL_NAMES || {})[me.hall] || 'Kiếm Các';
+  const hallIcon = (G().HALL_ICONS_UI || {})[me.hall] || '⚔️';
   document.getElementById('char-body').innerHTML = `
     <div class="row"><span>Đạo hiệu</span><b style="color:#7dff9a">${me.name}</b></div>
-    <div class="row"><span>Tông môn</span><b>Thanh Huyền Tông · Kiếm Các</b></div>
+    <div class="row"><span>Tông môn</span><b>Thanh Huyền Tông</b></div>
+    <div class="row"><span>Bậc</span><b style="color:#9fd8ff">${rankName}</b></div>
+    <div class="row"><span>Đường</span><b>${me.hallChosen ? hallIcon + ' ' + hallName : 'Chưa chọn'}</b></div>
     <div class="row"><span>Cảnh giới</span><b>${realm} ${me.level}</b></div>
     <div class="row"><span>Khí huyết</span><b>${Math.ceil(me.hp)} / ${me.maxhp}</b></div>
     <div class="row"><span>Linh lực</span><b>${Math.ceil(me.mp)} / ${me.maxmp}</b></div>
@@ -201,10 +206,50 @@ function showDlg(m) {
     b.onclick = () => { G().send({ t: 'turnin', quest: m.qid }); closePanels(); };
     btns.appendChild(b);
   }
+  if (m.canPromote) { // P3: thăng Ngoại Môn
+    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '⬆️ Thăng Ngoại Môn';
+    b.onclick = () => { G().send({ t: 'promote' }); closePanels(); };
+    btns.appendChild(b);
+  }
+  if (m.hallChoice && m.halls) { // P3: mở lại UI chọn Đường
+    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '🏛️ Chọn Đường';
+    b.onclick = () => { openHall(m.halls); };
+    btns.appendChild(b);
+  }
   const bye = document.createElement('button'); bye.className = 'dlg-btn'; bye.textContent = 'Tạm biệt';
   bye.onclick = closePanels;
   btns.appendChild(bye);
   document.getElementById('panel-dlg').classList.add('open');
+}
+
+// ---------- P3: Chọn Đường ----------
+function openHall(halls) {
+  closePanels();
+  const body = document.getElementById('hall-body'); body.innerHTML = '';
+  const me = G().players.get(G().myName);
+  const curHall = me && me.hall;
+  const skillCount = { 'kiem-cac': 6, 'than-phu': 4, 'tran-su': 4, 'duoc-vuong': 4 };
+  const note = document.createElement('div');
+  note.style.cssText = 'color:#ffb84d;font-size:12px;margin-bottom:10px';
+  note.textContent = 'Chọn 1 Đường để theo cả đời — mỗi Đường có bộ kỹ năng riêng!';
+  body.appendChild(note);
+  for (const id of ['kiem-cac', 'than-phu', 'tran-su', 'duoc-vuong']) {
+    const h = halls[id]; if (!h) continue;
+    const isCur = curHall === id;
+    const card = document.createElement('div'); card.className = 'hall-card';
+    card.innerHTML = `<div class="hc-icon">${h.icon}</div>
+      <div class="hc-info"><b>${h.name}${isCur ? ' <span class="hc-cur">Đang theo</span>' : ''}</b>
+      <small>${h.desc}</small><small style="color:#8fa0c8">${skillCount[id] || 4} kỹ năng riêng</small></div>`;
+    const btn = document.createElement('button');
+    btn.textContent = isCur ? 'Xác nhận ở lại' : 'Gia nhập';
+    btn.onclick = () => {
+      if (btn.dataset.confirm) { G().send({ t: 'joinhall', hall: id }); closePanels(); }
+      else { btn.dataset.confirm = '1'; btn.textContent = 'Chắc chắn?'; btn.classList.add('warn'); }
+    };
+    card.appendChild(btn);
+    body.appendChild(card);
+  }
+  document.getElementById('panel-hall').classList.add('open');
 }
 
 // ---------- Thanh máu boss ----------
@@ -216,5 +261,5 @@ function updateBoss(m) {
   document.getElementById('boss-hptext').textContent = `${Math.max(0, Math.ceil(m.hp))}/${m.maxhp}`;
 }
 
-window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings, showDlg, updateQuest, updateBoss };
+window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings, showDlg, updateQuest, updateBoss, openHall, renderChar };
 })();

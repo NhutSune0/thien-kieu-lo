@@ -28,16 +28,79 @@ const PORTALS = [
 ];
 const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 } }; // điểm an toàn mỗi map
 
-// ---------- Skill Kiếm Các Đường (P1) ----------
-const SKILLS = {
-  'linh-kiem-tram':      { cd: 3,  mp: 10, range: 430, dmgMul: 1.6, kind: 'bolt',   targets: 1 },
-  'cuu-loi-kiem':        { cd: 8,  mp: 25, range: 390, dmgMul: 2.2, kind: 'aoe',    targets: 3 },
-  'phan-thien-kiem':     { cd: 10, mp: 30, range: 350, dmgMul: 2.8, kind: 'aoe',    radius: 140 },
-  'van-kiem-quy-tong':   { cd: 15, mp: 45, range: 300, dmgMul: 3.2, kind: 'nova',    radius: 230 },
-  'hon-don-kim-chung':   { cd: 20, mp: 40, range: 0,   dmgMul: 0,   kind: 'shield',  dur: 6 },
-  'khai-thien-nhat-kiem':{ cd: 60, mp: 80, range: 540, dmgMul: 8.0, kind: 'line',    width: 130 },
+// ---------- 4 Đường của Thanh Huyền Tông ----------
+const HALLS = {
+  'kiem-cac':   { name: 'Kiếm Các',   icon: '⚔️', desc: 'Kiếm tu: phi kiếm tung hoành, sát thương đơn cực mạnh' },
+  'than-phu':  { name: 'Thần Phù',   icon: '🧧', desc: 'Phù tu: phù lục bay đầy trời, tầm xa và khống chế' },
+  'tran-su':   { name: 'Trận Sư',    icon: '☯️', desc: 'Trận pháp: trận đồ bát quái, công thủ toàn diện' },
+  'duoc-vuong':{ name: 'Dược Vương', icon: '🌿', desc: 'Đan tu: đan hỏa xanh, hồi phục và độc đan' },
 };
-const SKILL_ORDER = Object.keys(SKILLS);
+const RANKS = {
+  'tap-vu': 'Tạp Vụ', 'ngoai-mon': 'Ngoại Môn', 'noi-mon': 'Nội Môn',
+  'hac-tam': 'Hạch Tâm', 'chan-truyen': 'Chân Truyền', 'thien-kieu': 'Thiên Kiêu',
+};
+// vis: theme hình ảnh hiệu ứng — 'sword' phi kiếm, 'talisman' phù bay, 'formation' bát quái, 'danfire' đan hỏa
+const HALL_SKILLS = {
+  'kiem-cac': {
+    'linh-kiem-tram':      { cd: 3,  mp: 10, range: 430, dmgMul: 1.6, kind: 'bolt',   targets: 1, vis: 'sword' },
+    'cuu-loi-kiem':        { cd: 8,  mp: 25, range: 390, dmgMul: 2.2, kind: 'aoe',    targets: 3, vis: 'sword' },
+    'phan-thien-kiem':     { cd: 10, mp: 30, range: 350, dmgMul: 2.8, kind: 'aoe',    radius: 140, vis: 'sword' },
+    'van-kiem-quy-tong':   { cd: 15, mp: 45, range: 300, dmgMul: 3.2, kind: 'nova',    radius: 230, vis: 'sword' },
+    'hon-don-kim-chung':   { cd: 20, mp: 40, range: 0,   dmgMul: 0,   kind: 'shield',  dur: 6, vis: 'sword' },
+    'khai-thien-nhat-kiem':{ cd: 60, mp: 80, range: 540, dmgMul: 8.0, kind: 'line',    width: 130, vis: 'sword' },
+  },
+  'than-phu': {
+    'hoa-phu-lien-chau': { cd: 3,  mp: 10, range: 430, dmgMul: 1.5, kind: 'bolt', targets: 3, vis: 'talisman' },
+    'dinh-than-phu':     { cd: 8,  mp: 20, range: 380, dmgMul: 0.8, kind: 'stun', targets: 1, stunDur: 3, vis: 'talisman' },
+    'ngu-loi-phu':       { cd: 12, mp: 30, range: 360, dmgMul: 2.6, kind: 'aoe',  targets: 5, vis: 'talisman' },
+    'van-phu-trieu-tong':{ cd: 60, mp: 70, range: 420, dmgMul: 7.0, kind: 'rain', targets: 8, radius: 200, vis: 'talisman' },
+  },
+  'tran-su': {
+    'tu-linh-tieu-tran':     { cd: 3,  mp: 10, range: 400, kind: 'zone', radius: 110, dur: 5, tickMul: 0.8, vis: 'formation' },
+    'khon-long-tran':        { cd: 10, mp: 25, range: 380, kind: 'zone', radius: 130, dur: 4, tickMul: 0.5, slowMul: 0.4, slowDur: 4, stunDur: 2, vis: 'formation' },
+    'sat-phat-kiem-tran':    { cd: 15, mp: 35, range: 350, dmgMul: 3.0, kind: 'aoe', targets: 5, vis: 'formation' },
+    'cuu-cung-bat-quai-tran':{ cd: 60, mp: 70, range: 320, dmgMul: 6.0, kind: 'nova', radius: 280, slowMul: 0.5, slowDur: 4, vis: 'formation' },
+  },
+  'duoc-vuong': {
+    'hoi-xuan-dan-khi':  { cd: 3,  mp: 10, kind: 'heal', healMul: 0.3, vis: 'danfire' },
+    'thanh-tam-dan':     { cd: 10, mp: 20, kind: 'shield', dur: 6, healMul: 0.15, vis: 'danfire' },
+    'doc-dan-boc-phat':  { cd: 12, mp: 30, range: 360, dmgMul: 2.4, kind: 'aoe', targets: 4, poisonDur: 5, poisonMul: 0.3, vis: 'danfire' },
+    'cuu-chuyen-kim-dan':{ cd: 60, mp: 70, kind: 'heal', healMul: 0.8, atkBuffMul: 1.3, atkBuffDur: 10, vis: 'danfire' },
+  },
+};
+const HALL_ORDERS = {
+  'kiem-cac': ['linh-kiem-tram','cuu-loi-kiem','phan-thien-kiem','van-kiem-quy-tong','hon-don-kim-chung','khai-thien-nhat-kiem'],
+  'than-phu': ['hoa-phu-lien-chau','dinh-than-phu','ngu-loi-phu','van-phu-trieu-tong'],
+  'tran-su': ['tu-linh-tieu-tran','khon-long-tran','sat-phat-kiem-tran','cuu-cung-bat-quai-tran'],
+  'duoc-vuong': ['hoi-xuan-dan-khi','thanh-tam-dan','doc-dan-boc-phat','cuu-chuyen-kim-dan'],
+};
+const HALL_ICONS = {
+  'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp',
+  'van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp',
+  'hoa-phu-lien-chau':'icon-hoa-phu-lien-chau.webp','dinh-than-phu':'icon-dinh-than-phu.webp',
+  'ngu-loi-phu':'icon-ngu-loi-phu.webp','van-phu-trieu-tong':'icon-van-phu-trieu-tong.webp',
+  'tu-linh-tieu-tran':'icon-tu-linh-tieu-tran.webp','khon-long-tran':'icon-khon-long-tran.webp',
+  'sat-phat-kiem-tran':'icon-sat-phat-kiem-tran.webp','cuu-cung-bat-quai-tran':'icon-cuu-cung-bat-quai-tran.webp',
+  'hoi-xuan-dan-khi':'icon-hoi-xuan-dan-khi.webp','thanh-tam-dan':'icon-thanh-tam-dan.webp',
+  'doc-dan-boc-phat':'icon-doc-dan-boc-phat.webp','cuu-chuyen-kim-dan':'icon-cuu-chuyen-kim-dan.webp',
+};
+const SKILL_NAMES = {
+  'linh-kiem-tram':'Linh Kiếm Trảm','cuu-loi-kiem':'Cửu Lôi Kiếm Quyết','phan-thien-kiem':'Phần Thiên Kiếm',
+  'van-kiem-quy-tong':'Vạn Kiếm Quy Tông','hon-don-kim-chung':'Hỗn Độn Kim Chung','khai-thien-nhat-kiem':'Khai Thiên Nhất Kiếm',
+  'hoa-phu-lien-chau':'Hỏa Phù Liên Châu','dinh-than-phu':'Định Thân Phù','ngu-loi-phu':'Ngũ Lôi Phù Trận','van-phu-trieu-tong':'Vạn Phù Triều Tông',
+  'tu-linh-tieu-tran':'Tụ Linh Tiểu Trận','khon-long-tran':'Khốn Long Trận','sat-phat-kiem-tran':'Sát Phạt Kiếm Trận','cuu-cung-bat-quai-tran':'Cửu Cung Bát Quái Trận',
+  'hoi-xuan-dan-khi':'Hồi Xuân Đan Khí','thanh-tam-dan':'Thanh Tâm Đan','doc-dan-boc-phat':'Độc Đan Bộc Phát','cuu-chuyen-kim-dan':'Cửu Chuyển Kim Đan',
+};
+const getSkills = p => HALL_SKILLS[p.hall] || HALL_SKILLS['kiem-cac'];
+const getOrder = p => HALL_ORDERS[p.hall] || HALL_ORDERS['kiem-cac'];
+function hallData(hall) { // icons + names gửi client cho 1 Đường
+  const h = HALL_ORDERS[hall] || HALL_ORDERS['kiem-cac'];
+  const icons = {}, names = {};
+  for (const id of h) { icons[id] = HALL_ICONS[id]; names[id] = SKILL_NAMES[id]; }
+  return { icons, names };
+}
+// Công kích hiệu dụng (tính buff Cửu Chuyển Kim Đan)
+const effAtk = p => p.atk * (Date.now() < (p.atkBuffUntil || 0) ? (p.atkBuffMul || 1) : 1);
 
 // ---------- Quái (P1: 3 loại vòng ngoài) ----------
 const MONSTERS = {
@@ -125,6 +188,8 @@ const server = http.createServer((req, res) => {
 const players = new Map();   // ws -> player
 const monsters = new Map();  // id -> monster
 let midSeq = 1;
+const zones = []; // trận pháp đặt dưới đất: {id,x,y,r,until,nextTick,tickMul,slowMul,slowDur,stunDur,owner,vis,map}
+let zidSeq = 1;
 
 function newPlayerState(name) {
   return {
@@ -134,13 +199,14 @@ function newPlayerState(name) {
     atk: 24, def: 8, lt: 20, potions: 3,
     cds: {}, shieldUntil: 0, protectUntil: 0, lastAtk: 0, dead: false, respawnAt: 0,
     quests: { active: null, done: [] }, dch: 0, titles: [], ketbai: false,
+    rank: 'tap-vu', hallChosen: false, // P3: bậc tông môn + đã chọn Đường chưa
     carrying: false, collected: [], channel: null,
   };
 }
 function loadPlayer(name) {
   const fp = path.join(SAVE_DIR, name + '.json');
   if (fs.existsSync(fp)) {
-    try { return Object.assign(newPlayerState(name), JSON.parse(fs.readFile(fp))); } catch(e) {}
+    try { return Object.assign(newPlayerState(name), JSON.parse(fs.readFileSync(fp))); } catch(e) {}
   }
   return newPlayerState(name);
 }
@@ -158,6 +224,7 @@ function spawnMonster(type, map, initial) {
     y: 200 + Math.random() * (WORLD_H - 400),
     hp: cfg.hp, maxhp: cfg.hp,
     state: 'idle', wx: 0, wy: 0, wt: 0, target: null, atkAt: 0, dead: false, respawnAt: 0,
+    stunUntil: 0, slowUntil: 0, slowMul: 1, poisonUntil: 0, poisonMul: 0, poisonBy: null, poisonTick: 0, // P3: choáng/chậm/độc
   };
   if (!initial) { m.x = anchor.x + (Math.random()-0.5)*1600; m.y = anchor.y + (Math.random()-0.5)*1200; }
   // Đẩy quái ra khỏi vùng an toàn quanh điểm đáp của map
@@ -208,7 +275,9 @@ wss.on('connection', ws => {
       st.protectUntil = Date.now() + 5000; // bảo hộ 5s lúc mới vào
       st.channel = null; st.carrying = false; // reset trạng thái vận công/gánh nước
       players.set(ws, st); ws._p = st;
-      ws.send(JSON.stringify({ t: 'welcome', you: pubPlayer(st), skills: SKILLS, order: SKILL_ORDER,
+      const hd0 = hallData(st.hall);
+      ws.send(JSON.stringify({ t: 'welcome', you: pubPlayer(st), skills: getSkills(st), order: getOrder(st),
+        icons: hd0.icons, names: hd0.names,
         map: st.map, mapName: MAPS[st.map].name,
         npcs: npcsFor(), quest: questInfo(st), interacts: interactsFor(st.map),
         portals: portalsFor(st.map), collected: st.collected }));
@@ -245,6 +314,12 @@ wss.on('connection', ws => {
       startInteract(p, String(msg.id));
     } else if (msg.t === 'portal') {
       usePortal(p, String(msg.id));
+    } else if (msg.t === 'promote') {
+      promote(p);
+    } else if (msg.t === 'joinhall') {
+      joinHall(p, msg.hall);
+    } else if (msg.t === 'wantshall') {
+      if (p.rank === 'ngoai-mon' && !p.hallChosen) sendTo(p, { t: 'canhall', halls: HALLS });
     }
   });
   ws.on('close', () => {
@@ -259,11 +334,17 @@ function pubPlayer(p) {
     level: p.level, tv: p.tv, tvNeed: tvNeed(p.level), lt: p.lt, potions: p.potions,
     atk: p.atk, def: p.def || 8,
     dch: p.dch || 0, titles: p.titles || [], ketbai: !!p.ketbai, qm: npcMarkers(p),
+    rank: p.rank || 'tap-vu', hall: p.hall || 'kiem-cac', hallChosen: !!p.hallChosen,
     moving: p.moving, dead: p.dead, shield: Date.now() < p.shieldUntil };
 }
 function broadcast(msg, except) {
   const s = JSON.stringify(msg);
   for (const [ws] of players) if (ws !== except && ws.readyState === 1) ws.send(s);
+}
+// Broadcast chỉ cho người chơi ở cùng map (fx/dmg của map nào chỉ hiện ở map đó)
+function broadcastMap(map, msg, except) {
+  const s = JSON.stringify(msg);
+  for (const [ws, pl] of players) if (pl.map === map && ws !== except && ws.readyState === 1) ws.send(s);
 }
 function sendTo(p, msg) {
   for (const [ws, pl] of players) if (pl === p && ws.readyState === 1) ws.send(JSON.stringify(msg));
@@ -358,7 +439,14 @@ function handleTalk(p, npcId) {
     if (nid && QUESTS[nid].giver === npcId) { canAccept = true; qid = nid; lines = QUESTS[nid].offer; }
   }
   if (!lines.length) lines = defaultLines(npcId);
-  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept, canTurnin, qid });
+  // P3: Chấp sự Lý cho thăng Ngoại Môn / chọn lại Đường
+  let canProm = false, hallChoice = false;
+  if (npcId === 'chap-su-ly') {
+    if (canPromote(p)) canProm = true;
+    else if (p.rank === 'ngoai-mon' && !p.hallChosen) hallChoice = true;
+  }
+  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept, canTurnin, qid, canPromote: canProm, hallChoice,
+    halls: hallChoice ? HALLS : undefined });
 }
 function acceptQuest(p, qid) {
   const nid = acceptAvailQuest(p);
@@ -386,6 +474,31 @@ function turninQuest(p, qid) {
   p.quests.active = null;
   broadcast({ t: 'sys', text: `🎉 ${p.name} hoàn thành nhiệm vụ [${q.name}]!` });
   refreshQuest(p);
+}
+// ---------- P3: Bậc tông môn + gia nhập Đường ----------
+function canPromote(p) {
+  return p.rank === 'tap-vu' && p.level >= 5 && (p.dch || 0) >= 150 && (p.quests.done || []).length >= 6;
+}
+function promote(p) {
+  if (p.rank !== 'tap-vu') { sendTo(p, { t: 'err', text: 'Ngươi đã là Ngoại Môn trở lên rồi.' }); return; }
+  if (p.level < 5) { sendTo(p, { t: 'err', text: 'Cần đạt Luyện Khí tầng 5!' }); return; }
+  if ((p.dch || 0) < 150) { sendTo(p, { t: 'err', text: `Cần 150 điểm cống hiến! (đang có ${p.dch || 0})` }); return; }
+  if ((p.quests.done || []).length < 6) { sendTo(p, { t: 'err', text: 'Hãy hoàn thành Chương 1: Tạp Dịch Viện!' }); return; }
+  p.rank = 'ngoai-mon';
+  broadcast({ t: 'sys', text: `🎉 ${p.name} đã thăng lên đệ tử Ngoại Môn!` });
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  sendTo(p, { t: 'canhall', halls: HALLS }); // mở UI chọn Đường
+}
+function joinHall(p, hall) {
+  hall = String(hall);
+  if (p.rank !== 'ngoai-mon') { sendTo(p, { t: 'err', text: 'Cần lên Ngoại Môn trước!' }); return; }
+  if (p.hallChosen) { sendTo(p, { t: 'err', text: 'Ngươi đã chọn Đường rồi.' }); return; }
+  if (!HALLS[hall]) return;
+  p.hall = hall; p.hallChosen = true; p.cds = {};
+  const hd = hallData(hall);
+  sendTo(p, { t: 'hallskills', skills: HALL_SKILLS[hall], order: HALL_ORDERS[hall], icons: hd.icons, names: hd.names });
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  broadcast({ t: 'sys', text: `🏛️ ${p.name} đã gia nhập ${HALLS[hall].icon} ${HALLS[hall].name}!` });
 }
 // Vật thu thập có hợp với NV đang làm không
 function gatherable(p, it) {
@@ -461,10 +574,10 @@ function damageMonster(m, dmg, p) {
     const a = Math.atan2(m.y - p.y, m.x - p.x);
     m.x = clamp(m.x + Math.cos(a) * 200, 0, WORLD_W);
     m.y = clamp(m.y + Math.sin(a) * 200, 0, WORLD_H);
-    broadcast({ t: 'burst', x: Math.round(p.x), y: Math.round(p.y), by: p.name });
+    broadcastMap(m.map, { t: 'burst', x: Math.round(p.x), y: Math.round(p.y), by: p.name });
     broadcast({ t: 'sys', text: `⚡ Hỗn Độn Linh Căn của ${p.name} bộc phát!` });
   }
-  broadcast({ t: 'dmg', mid: m.id, dmg: Math.round(dmg), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp });
+  broadcastMap(m.map, { t: 'dmg', mid: m.id, dmg: Math.round(dmg), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp });
   if (m.hp <= 0) killMonster(m, p);
 }
 
@@ -488,7 +601,7 @@ function killMonster(m, p) {
       checkObjComplete(pl);
     }
   }
-  broadcast({ t: 'mdie', mid: m.id });
+  broadcastMap(m.map, { t: 'mdie', mid: m.id });
 }
 
 function gainTv(p, amount) {
@@ -507,42 +620,79 @@ function basicAttack(p) {
   p.lastAtk = now;
   const targets = nearestMonsters(p.x, p.y, 90, 1, p.map);
   p.dir = targets.length ? Math.atan2(targets[0].y - p.y, targets[0].x - p.x) : p.dir;
-  broadcast({ t: 'fx', kind: 'slash', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name });
-  if (targets.length) damageMonster(targets[0], p.atk, p);
+  broadcastMap(p.map, { t: 'fx', kind: 'slash', vis: 'sword', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name });
+  if (targets.length) damageMonster(targets[0], effAtk(p), p);
 }
 
 function castSkill(p, id) {
-  const s = SKILLS[id];
+  const s = getSkills(p)[id];
   if (!s) return;
   const now = Date.now();
   if ((p.cds[id] || 0) > now) return;
   if (p.mp < s.mp) { sendTo(p, { t: 'err', text: 'Hết linh lực!' }); return; }
   p.mp -= s.mp; p.cds[id] = now + s.cd * 1000;
+  const vis = s.vis || 'sword';
+  const fxm = o => broadcastMap(p.map, Object.assign({ vis, by: p.name }, o));
 
   if (s.kind === 'shield') {
     p.shieldUntil = now + s.dur * 1000;
-    broadcast({ t: 'fx', kind: 'shield', x: Math.round(p.x), y: Math.round(p.y), by: p.name, dur: s.dur });
+    if (s.healMul) { // Thanh Tâm Đan: khiên + hồi ít máu
+      const amt = Math.round(p.maxhp * s.healMul);
+      p.hp = Math.min(p.maxhp, p.hp + amt);
+      broadcastMap(p.map, { t: 'healnum', x: Math.round(p.x), y: Math.round(p.y), txt: '+' + amt });
+    }
+    fxm({ t: 'fx', kind: 'shield', x: Math.round(p.x), y: Math.round(p.y), dur: s.dur });
     sendTo(p, { t: 'me', you: pubPlayer(p) });
     return;
   }
-  const dmg = p.atk * s.dmgMul;
-  if (s.kind === 'bolt') {
+  if (s.kind === 'heal') {
+    const amt = Math.round(p.maxhp * s.healMul);
+    p.hp = Math.min(p.maxhp, p.hp + amt);
+    if (s.atkBuffMul) { p.atkBuffMul = s.atkBuffMul; p.atkBuffUntil = now + s.atkBuffDur * 1000; }
+    fxm({ t: 'fx', kind: 'heal', x: Math.round(p.x), y: Math.round(p.y) });
+    broadcastMap(p.map, { t: 'healnum', x: Math.round(p.x), y: Math.round(p.y), txt: '+' + amt });
+    if (s.atkBuffMul) sendTo(p, { t: 'sys', text: `\u2694\uFE0F Cửu Chuyển Kim Đan: công kích +${Math.round((s.atkBuffMul-1)*100)}% trong ${s.atkBuffDur}s!` });
+    sendTo(p, { t: 'me', you: pubPlayer(p) });
+    return;
+  }
+  if (s.kind === 'zone') {
+    // Đặt trận: tại quái gần nhất trong tầm, không có thì trước mặt 200px
+    const tg = nearestMonsters(p.x, p.y, s.range, 1, p.map);
+    const zx = tg.length ? tg[0].x : p.x + Math.cos(p.dir) * 200;
+    const zy = tg.length ? tg[0].y : p.y + Math.sin(p.dir) * 200;
+    zones.push({ id: zidSeq++, x: Math.round(zx), y: Math.round(zy), r: s.radius,
+      until: now + s.dur * 1000, nextTick: now, tickMul: s.tickMul || 0,
+      slowMul: s.slowMul || 0, slowDur: s.slowDur || 0, stunDur: s.stunDur || 0,
+      owner: p, vis, map: p.map });
+    fxm({ t: 'zonefx', x: Math.round(zx), y: Math.round(zy), r: s.radius, dur: s.dur });
+    sendTo(p, { t: 'me', you: pubPlayer(p) });
+    return;
+  }
+  const dmg = effAtk(p) * s.dmgMul;
+  if (s.kind === 'bolt' || s.kind === 'stun') {
     const tg = nearestMonsters(p.x, p.y, s.range, s.targets, p.map);
     const ang = tg.length ? Math.atan2(tg[0].y - p.y, tg[0].x - p.x) : p.dir;
     p.dir = ang;
-    broadcast({ t: 'fx', kind: 'bolt', id, x: Math.round(p.x), y: Math.round(p.y), dir: +ang.toFixed(2), by: p.name });
-    tg.forEach(m => damageMonster(m, dmg, p));
-  } else if (s.kind === 'aoe') {
+    fxm({ t: 'fx', kind: s.kind, id, x: Math.round(p.x), y: Math.round(p.y), dir: +ang.toFixed(2) });
+    tg.forEach(m => {
+      if (s.kind === 'stun' && s.stunDur) m.stunUntil = now + s.stunDur * 1000; // Định Thân Phù: khóa cứng
+      damageMonster(m, dmg, p);
+    });
+  } else if (s.kind === 'aoe' || s.kind === 'rain') {
     const tg = nearestMonsters(p.x, p.y, s.range, s.targets, p.map);
     tg.forEach(m => {
+      if (s.poisonDur) { m.poisonUntil = now + s.poisonDur * 1000; m.poisonMul = s.poisonMul || 0.3; m.poisonBy = p; m.poisonTick = 0; }
       damageMonster(m, dmg, p);
-      broadcast({ t: 'fx', kind: 'aoe', id, x: Math.round(m.x), y: Math.round(m.y), r: s.radius || 120, by: p.name });
+      fxm({ t: 'fx', kind: s.kind, id, x: Math.round(m.x), y: Math.round(m.y), r: s.radius || 120 });
     });
-    if (!tg.length) broadcast({ t: 'fx', kind: 'aoe', id, x: Math.round(p.x + Math.cos(p.dir)*200), y: Math.round(p.y + Math.sin(p.dir)*200), r: s.radius || 120, by: p.name });
+    if (!tg.length) fxm({ t: 'fx', kind: s.kind, id, x: Math.round(p.x + Math.cos(p.dir)*200), y: Math.round(p.y + Math.sin(p.dir)*200), r: s.radius || 120 });
   } else if (s.kind === 'nova') {
     const tg = nearestMonsters(p.x, p.y, s.radius, 99, p.map);
-    broadcast({ t: 'fx', kind: 'nova', id, x: Math.round(p.x), y: Math.round(p.y), r: s.radius, by: p.name });
-    tg.forEach(m => damageMonster(m, dmg, p));
+    fxm({ t: 'fx', kind: 'nova', id, x: Math.round(p.x), y: Math.round(p.y), r: s.radius });
+    tg.forEach(m => {
+      if (s.slowMul) { m.slowUntil = now + (s.slowDur || 3) * 1000; m.slowMul = s.slowMul; }
+      damageMonster(m, dmg, p);
+    });
   } else if (s.kind === 'line') {
     const tg = nearestMonsters(p.x, p.y, s.range, 99, p.map).filter(m => {
       const dx = m.x - p.x, dy = m.y - p.y;
@@ -552,7 +702,7 @@ function castSkill(p, id) {
     });
     // nếu không có quái, đánh theo hướng đang đứng
     const targets = tg.length ? tg : nearestMonsters(p.x + Math.cos(p.dir)*s.range/2, p.y + Math.sin(p.dir)*s.range/2, s.width, 99, p.map);
-    broadcast({ t: 'fx', kind: 'line', id, x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), len: s.range, w: s.width, by: p.name });
+    fxm({ t: 'fx', kind: 'line', id, x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), len: s.range, w: s.width });
     targets.forEach(m => damageMonster(m, dmg, p));
   }
   sendTo(p, { t: 'me', you: pubPlayer(p) });
@@ -562,7 +712,7 @@ function usePotion(p) {
   if (p.potions <= 0) { sendTo(p, { t: 'err', text: 'Hết Hồi Khí Đan!' }); return; }
   if (p.hp >= p.maxhp) return;
   p.potions--; p.hp = Math.min(p.maxhp, p.hp + p.maxhp * 0.4);
-  broadcast({ t: 'fx', kind: 'heal', x: Math.round(p.x), y: Math.round(p.y), by: p.name });
+  broadcastMap(p.map, { t: 'fx', kind: 'heal', vis: 'danfire', x: Math.round(p.x), y: Math.round(p.y), by: p.name });
   sendTo(p, { t: 'me', you: pubPlayer(p) });
 }
 
@@ -608,6 +758,29 @@ setInterval(() => {
     p.mp = Math.min(p.maxmp, p.mp + p.maxmp * 0.04 * dt);
   }
 
+  // Trận pháp (zone): mỗi giây gây sát thương + hiệu ứng cho quái trong vòng
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const z = zones[i];
+    if (now >= z.until) { zones.splice(i, 1); continue; }
+    if (now >= z.nextTick) {
+      z.nextTick = now + 1000;
+      const ow = z.owner, zAtk = ow ? effAtk(ow) : 10;
+      for (const m of monsters.values()) {
+        if (m.dead || m.map !== z.map) continue;
+        if (dist(m, z) > z.r) continue;
+        if (z.tickMul > 0) {
+          const zd = zAtk * z.tickMul;
+          m.hp -= zd;
+          m.target = ow; m.state = 'chase';
+          broadcastMap(z.map, { t: 'dmg', mid: m.id, dmg: Math.round(zd), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp });
+          if (m.hp <= 0) { killMonster(m, ow); continue; }
+        }
+        if (z.slowMul > 0) { m.slowUntil = now + (z.slowDur || 3) * 1000; m.slowMul = z.slowMul; }
+        if (z.stunDur > 0) m.stunUntil = now + z.stunDur * 1000;
+      }
+    }
+  }
+
   // Quái AI
   for (const m of monsters.values()) {
     if (m.dead) {
@@ -621,11 +794,22 @@ setInterval(() => {
       }
       continue;
     }
+    // P3: choáng -> đứng yên hoàn toàn; độc -> trừ máu mỗi giây
+    if (now < m.stunUntil) continue;
+    if (m.poisonUntil && now < m.poisonUntil && now >= m.poisonTick) {
+      m.poisonTick = now + 1000;
+      const pd = (m.poisonBy ? effAtk(m.poisonBy) : 10) * m.poisonMul;
+      m.hp -= pd;
+      m.target = m.poisonBy; m.state = 'chase';
+      broadcastMap(m.map, { t: 'dmg', mid: m.id, dmg: Math.round(pd), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp });
+      if (m.hp <= 0) { killMonster(m, m.poisonBy); continue; }
+    }
+    const spdMul = now < m.slowUntil ? (m.slowMul || 0.5) : 1; // P3: làm chậm
     if (m.state === 'idle') {
       m.wt -= dt;
       if (m.wt <= 0) { m.wx = m.x + (Math.random()-0.5)*300; m.wy = m.y + (Math.random()-0.5)*300; m.wt = 2 + Math.random()*3; }
       const dx = m.wx - m.x, dy = m.wy - m.y, d = Math.hypot(dx, dy);
-      if (d > 5) { m.x += dx/d * m.cfg.speed*0.4*dt; m.y += dy/d * m.cfg.speed*0.4*dt; }
+      if (d > 5) { m.x += dx/d * m.cfg.speed*0.4*spdMul*dt; m.y += dy/d * m.cfg.speed*0.4*spdMul*dt; }
       // Tìm mục tiêu: chỉ người chơi cùng map
       let best = null, bd = m.cfg.aggro;
       const anchor = MAP_ANCHOR[m.map] || SPAWN;
@@ -643,7 +827,7 @@ setInterval(() => {
       if (d < 44) {
         if (now - m.atkAt > 1000) { m.atkAt = now; hurtPlayer(t, m.cfg.dmg * (0.9 + Math.random()*0.2)); broadcast({ t: 'fx', kind: 'hit', x: Math.round(t.x), y: Math.round(t.y), by: t.name }); }
       } else {
-        m.x += (t.x - m.x)/d * m.cfg.speed*dt; m.y += (t.y - m.y)/d * m.cfg.speed*dt;
+        m.x += (t.x - m.x)/d * m.cfg.speed*spdMul*dt; m.y += (t.y - m.y)/d * m.cfg.speed*spdMul*dt;
       }
     }
   }
@@ -654,7 +838,8 @@ setInterval(() => {
     const snap = { t: 'snap',
       ps: [...players.values()].filter(q => q.map === pl.map).map(pubPlayer),
       ms: [...monsters.values()].filter(m => !m.dead && m.map === pl.map)
-        .map(m => ({ id: m.id, type: m.type, x: Math.round(m.x), y: Math.round(m.y), hp: Math.ceil(m.hp), maxhp: m.maxhp })),
+        .map(m => ({ id: m.id, type: m.type, x: Math.round(m.x), y: Math.round(m.y), hp: Math.ceil(m.hp), maxhp: m.maxhp,
+          stun: now < m.stunUntil, slow: now < m.slowUntil })),
     };
     ws.send(JSON.stringify(snap));
   }
