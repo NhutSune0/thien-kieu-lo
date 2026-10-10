@@ -193,7 +193,7 @@ function handle(m) {
   else if (m.t === 'zonefx') {
     zonesFx.push({ x: m.x, y: m.y, r: m.r, until: performance.now() + m.dur * 1000, vis: m.vis });
     // Đặt trận: tên chiêu bay + linh khí hội tụ + bát quái hiện ra
-    if (m.id && SKILL_NAMES[m.id]) fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 170, text: SKILL_NAMES[m.id], life: 1.5, maxLife: 1.5 });
+    if (m.id && SKILL_NAMES[m.id]) fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 170, text: SKILL_NAMES[m.id], life: 2.5, maxLife: 2.5 });
     fxAnims.push({ kind: 'bagua', x: m.x, y: m.y, r: m.r, life: 0.7, color: '#6adce8' });
     for (let i = 0; i < 10; i++) {
       const a = Math.random()*Math.PI*2, rr = m.r * (1.2 + Math.random()*0.6);
@@ -239,7 +239,7 @@ function spawnFx(m) {
   }
   // Tên chiêu bay — phong cách truyện tu tiên
   if (sid && SKILL_NAMES[sid] && m.kind !== 'hit' && m.kind !== 'slash') {
-    fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 190, text: SKILL_NAMES[sid], life: 1.5, maxLife: 1.5 });
+    fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 190, text: SKILL_NAMES[sid], life: 2.5, maxLife: 2.5 });
   }
   // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
   if (sid && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
@@ -652,17 +652,26 @@ function loop(t) {
       ctx.globalAlpha *= 0.5;
       ctx.beginPath(); ctx.arc(f.x, f.y, 4, 0, Math.PI*2); ctx.fillStyle = '#ffe9a8'; ctx.fill();
     } else if (f.kind === 'namecall') { // tên chiêu bay — chữ vàng kim phong cách truyện tu tiên
-      const pr = 1 - f.life / f.maxLife; // 0 -> 1
-      const scale = pr < 0.15 ? 0.6 + pr / 0.15 * 0.5 : 1.1 - Math.min(0.1, (pr - 0.15) * 0.2);
-      ctx.translate(f.x, f.y - pr * 46);
+      const pmax = f.maxLife || 2.5;
+      const pr = 1 - f.life / pmax; // 0 -> 1
+      const scale = pr < 0.12 ? 0.6 + pr / 0.12 * 0.5 : 1.1 - Math.min(0.1, (pr - 0.12) * 0.2);
+      const fy = f.y - pr * 60;
+      ctx.translate(f.x, fy);
       ctx.scale(scale, scale);
-      ctx.font = 'bold 30px serif'; ctx.textAlign = 'center';
-      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(60,20,0,.9)';
-      ctx.strokeText(f.text, 0, 0);
-      const g = ctx.createLinearGradient(0, -26, 0, 6);
+      ctx.font = 'bold 34px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(f.text).width;
+      ctx.fillStyle = 'rgba(20,8,0,.55)'; // nền tối cho chữ nổi
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(-tw/2 - 14, -26, tw + 28, 52, 10);
+      else ctx.rect(-tw/2 - 14, -26, tw + 28, 52);
+      ctx.fill();
+      ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(60,20,0,.9)';
+      ctx.strokeText(f.text, 0, 2);
+      const g = ctx.createLinearGradient(0, -28, 0, 8);
       g.addColorStop(0, '#fff6c8'); g.addColorStop(0.5, '#ffd94a'); g.addColorStop(1, '#e8930c');
-      ctx.fillStyle = g; ctx.shadowColor = '#ffb400'; ctx.shadowBlur = 18;
-      ctx.fillText(f.text, 0, 0);
+      ctx.fillStyle = g; ctx.shadowColor = '#ffb400'; ctx.shadowBlur = 20;
+      ctx.fillText(f.text, 0, 2);
+      ctx.textBaseline = 'alphabetic';
     } else if (f.kind === 'bolt') { // tia sét đánh từ trời xuống
       const segs = 7, pts = [];
       for (let i = 0; i <= segs; i++) pts.push([f.x + (Math.random()-0.5)*46*(i/segs), f.y - 420 + (420/segs)*i]);
