@@ -1062,10 +1062,11 @@ setInterval(() => { // vòng auto 400ms
     return;
   }
   // 2. Farm: không có NV cần làm và map hiện tại hết quái -> sang Yêu Thú Sơn Mạch
-  let best = null, bd = 1000;
+  // Tìm quái GẦN NHẤT không giới hạn khoảng cách (trước đây giới hạn 1000px nên quái xa là đứng im)
+  let best = null, bd = Infinity;
   for (const m of monsters.values()) { const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } }
   if (!best && myMap !== 'yeu-thu') { goToMap('yeu-thu'); return; }
-  if (!best) return;
+  if (!best) return; // thật sự hết quái, đứng chờ respawn
   if (bd > 110) send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });
   else send({ t: 'attack' });
 }, 400);
