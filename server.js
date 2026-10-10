@@ -485,6 +485,7 @@ function promote(p) {
   if ((p.dch || 0) < 150) { sendTo(p, { t: 'err', text: `Cần 150 điểm cống hiến! (đang có ${p.dch || 0})` }); return; }
   if ((p.quests.done || []).length < 6) { sendTo(p, { t: 'err', text: 'Hãy hoàn thành Chương 1: Tạp Dịch Viện!' }); return; }
   p.rank = 'ngoai-mon';
+  savePlayer(p); // lưu ngay — tránh mất khi server restart trước autosave
   broadcast({ t: 'sys', text: `🎉 ${p.name} đã thăng lên đệ tử Ngoại Môn!` });
   sendTo(p, { t: 'me', you: pubPlayer(p) });
   sendTo(p, { t: 'canhall', halls: HALLS }); // mở UI chọn Đường
@@ -495,6 +496,7 @@ function joinHall(p, hall) {
   if (p.hallChosen) { sendTo(p, { t: 'err', text: 'Ngươi đã chọn Đường rồi.' }); return; }
   if (!HALLS[hall]) return;
   p.hall = hall; p.hallChosen = true; p.cds = {};
+  savePlayer(p); // lưu ngay — tránh mất khi server restart trước autosave
   const hd = hallData(hall);
   sendTo(p, { t: 'hallskills', skills: HALL_SKILLS[hall], order: HALL_ORDERS[hall], icons: hd.icons, names: hd.names });
   sendTo(p, { t: 'me', you: pubPlayer(p) });
