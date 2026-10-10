@@ -35,6 +35,66 @@ const MONSTERS = {
   'da-hoa-lang':  { hp: 190, dmg: 24, tv: 85, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 5 },
 };
 
+// ---------- NPC Chương 1 ----------
+const NPCS = {
+  'chap-su-ly':   { name: 'Chấp sự Lý',    x: 1920, y: 1150 },
+  'lao-tran':     { name: 'Lão Trần',       x: 1700, y: 1500 },
+  'duoc-tran-tu': { name: 'Dược Trần Tử',   x: 2140, y: 1500 },
+  'tieu-ho':      { name: 'Trương Tiểu Hổ', x: 1920, y: 1730 },
+};
+
+// ---------- Nhiệm vụ Chương 1 (chuỗi tuyến tính) ----------
+const QUESTS = {
+  'C1-01': { name: 'Nhập Môn', giver: 'chap-su-ly', turnin: 'duoc-tran-tu',
+    objectives: [{ type: 'talk', npc: 'duoc-tran-tu', text: 'Gặp Dược Trần Tử báo danh' }],
+    reward: { tv: 50, lt: 5, dch: 10 },
+    offer: ['Tạp linh căn thì về Tạp Dịch Viện. Đừng có mơ mộng.', 'Đến gặp Dược Trần Tử báo danh đi.'],
+    done: ['Lại một đứa nhỏ bị chê... Không sao.', 'Ở đây không ai chê con cả. Tạp vụ cũng là đệ tử tông môn.'] },
+  'C1-02': { name: 'Chổi Đầu Đời', giver: 'lao-tran', turnin: 'lao-tran',
+    objectives: [{ type: 'collect', item: 'la', count: 5, text: 'Quét lá trong sân' }],
+    reward: { tv: 30, dch: 10 },
+    offer: ['Quét sân thì phải quét tâm trước.', 'Quét 5 đống lá trong sân đi.'],
+    done: ['Sân sạch rồi. Tâm con cũng sạch hơn chút đấy.'] },
+  'C1-03': { name: 'Gánh Nước Linh Tuyền', giver: 'tieu-ho', turnin: 'duoc-tran-tu',
+    objectives: [{ type: 'interact', obj: 'gieng', text: 'Lấy nước ở giếng phía đông' },
+                 { type: 'talk', npc: 'duoc-tran-tu', text: 'Gánh nước về cho Dược Trần Tử' }],
+    reward: { tv: 60, lt: 5, dch: 15 },
+    offer: ['Đi! Gánh nước Linh Tuyền với ta!', 'Lấy nước ở giếng phía đông rồi gánh về cho Dược lão.'],
+    done: ['Nước Linh Tuyền đây rồi. Vất vả cho con.'] },
+  'C1-04': { name: 'Hái Linh Thảo', giver: 'duoc-tran-tu', turnin: 'duoc-tran-tu',
+    objectives: [{ type: 'collect', item: 'linh-thao', count: 10, text: 'Hái Linh Thảo tươi' }],
+    reward: { tv: 80, potions: 2, dch: 20 },
+    offer: ['Đan Đường thiếu Linh Thảo luyện Hồi Khí Đan.', 'Hái 10 gốc tươi về đây. Cẩn thận, có 2 gốc héo đấy!'],
+    done: ['Đủ 10 gốc tươi. Tốt lắm!'] },
+  'C1-05': { name: 'Bữa Cơm Huynh Đệ', giver: 'tieu-ho', turnin: 'tieu-ho',
+    objectives: [{ type: 'talk', npc: 'tieu-ho', text: 'Ăn bánh bao cùng Tiểu Hổ' }],
+    reward: { tv: 30, ketbai: true },
+    offer: ['Này, phần bánh bao của ngươi đây.', 'Ngươi là huynh đệ đầu tiên của ta ở đây.', 'Sau này ai bắt nạt ngươi... ta sẽ chạy đi gọi người cứu ngươi!'],
+    done: ['Từ nay chúng ta là huynh đệ! (Đã mở Kết bái)'] },
+  'C1-06': { name: 'Đêm Yêu Thú', giver: 'lao-tran', turnin: 'lao-tran',
+    objectives: [{ type: 'kill', mob: 'thiet-bi-da-tru', count: 1, text: 'Đánh bại Thiết Bì Dã Trư' }],
+    reward: { tv: 300, lt: 20, dch: 100, title: 'Kẻ Sống Sót Đêm Yêu Thú' },
+    offer: ['Đêm nay có yêu thú lẻn vào Tạp Dịch Viện!', 'Cẩn thận đấy tiểu tử...'],
+    done: ['Tiểu tử... thú vị đấy. (Hỗn Độn Linh Căn của con vừa rung động!)'] },
+};
+const QUEST_ORDER = Object.keys(QUESTS);
+
+// ---------- Vật tương tác (lá, thảo, giếng) ----------
+const INTERACTS = [
+  { id: 'la1', type: 'la', x: 1580, y: 1420 }, { id: 'la2', type: 'la', x: 1820, y: 1420 },
+  { id: 'la3', type: 'la', x: 1580, y: 1600 }, { id: 'la4', type: 'la', x: 1820, y: 1600 },
+  { id: 'la5', type: 'la', x: 1700, y: 1690 },
+  { id: 'gieng', type: 'gieng', x: 2400, y: 1200 },
+];
+{ // 12 gốc thảo quanh Dược Trần Tử: 10 tươi + 2 héo (vị trí 3 và 8)
+  const cx = 2140, cy = 1500;
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI * 2 / 12, r = i % 2 ? 190 : 145;
+    INTERACTS.push({ id: 'lt' + i, type: (i === 3 || i === 8) ? 'linh-thao-heo' : 'linh-thao',
+      x: Math.round(cx + Math.cos(a) * r), y: Math.round(cy + Math.sin(a) * r) });
+  }
+}
+
 const tvNeed = lvl => Math.round(100 * Math.pow(1.4, lvl - 1)); // Luyện Khí 1-9 (P1)
 
 // ---------- HTTP static ----------
@@ -62,6 +122,8 @@ function newPlayerState(name) {
     level: 1, tv: 0, hp: 120, maxhp: 120, mp: 80, maxmp: 80,
     atk: 24, def: 8, lt: 20, potions: 3,
     cds: {}, shieldUntil: 0, protectUntil: 0, lastAtk: 0, dead: false, respawnAt: 0,
+    quests: { active: null, done: [] }, dch: 0, titles: [], ketbai: false,
+    carrying: false, collected: [], channel: null,
   };
 }
 function loadPlayer(name) {
@@ -111,8 +173,11 @@ wss.on('connection', ws => {
       st.dead = false;
       st.x = SPAWN.x; st.y = SPAWN.y; // về điểm spawn an toàn
       st.protectUntil = Date.now() + 5000; // bảo hộ 5s lúc mới vào
+      st.channel = null; st.carrying = false; // reset trạng thái vận công/gánh nước
       players.set(ws, st); ws._p = st;
-      ws.send(JSON.stringify({ t: 'welcome', you: pubPlayer(st), skills: SKILLS, order: SKILL_ORDER }));
+      ws.send(JSON.stringify({ t: 'welcome', you: pubPlayer(st), skills: SKILLS, order: SKILL_ORDER,
+        npcs: Object.entries(NPCS).map(([id, n]) => ({ id, name: n.name, x: n.x, y: n.y })),
+        quest: questInfo(st), interacts: INTERACTS, collected: st.collected }));
       broadcast({ t: 'sys', text: `${name} đã vào tông môn.` }, ws);
       return;
     }
@@ -122,6 +187,7 @@ wss.on('connection', ws => {
       const nx = clamp(+msg.x || p.x, 0, WORLD_W), ny = clamp(+msg.y || p.y, 0, WORLD_H);
       p.tx = nx; p.ty = ny; p.moving = true;
       p.dir = Math.atan2(ny - p.y, nx - p.x);
+      if (p.channel) { p.channel = null; sendTo(p, { t: 'channel', dur: 0 }); } // di chuyển hủy vận công thu thập
     } else if (msg.t === 'skill') {
       castSkill(p, String(msg.id));
     } else if (msg.t === 'attack') {
@@ -135,6 +201,14 @@ wss.on('connection', ws => {
       if (!text) return;
       p.lastChat = now;
       broadcast({ t: 'chat', name: p.name, text });
+    } else if (msg.t === 'talk') {
+      handleTalk(p, String(msg.npc));
+    } else if (msg.t === 'accept') {
+      acceptQuest(p, String(msg.quest));
+    } else if (msg.t === 'turnin') {
+      turninQuest(p, String(msg.quest));
+    } else if (msg.t === 'interact') {
+      startInteract(p, String(msg.id));
     }
   });
   ws.on('close', () => {
@@ -148,6 +222,7 @@ function pubPlayer(p) {
     hp: Math.ceil(p.hp), maxhp: p.maxhp, mp: Math.ceil(p.mp), maxmp: p.maxmp,
     level: p.level, tv: p.tv, tvNeed: tvNeed(p.level), lt: p.lt, potions: p.potions,
     atk: p.atk, def: p.def || 8,
+    dch: p.dch || 0, titles: p.titles || [], ketbai: !!p.ketbai, qm: npcMarkers(p),
     moving: p.moving, dead: p.dead, shield: Date.now() < p.shieldUntil };
 }
 function broadcast(msg, except) {
@@ -156,6 +231,177 @@ function broadcast(msg, except) {
 }
 function sendTo(p, msg) {
   for (const [ws, pl] of players) if (pl === p && ws.readyState === 1) ws.send(JSON.stringify(msg));
+}
+
+// ---------- Quest engine (Chương 1) ----------
+// NV khả dụng tiếp theo: NV đầu tiên chưa done và chưa active (chuỗi tuyến tính)
+function acceptAvailQuest(p) {
+  const a = p.quests.active;
+  for (const id of QUEST_ORDER) {
+    if (p.quests.done.includes(id)) continue;
+    if (a) return null; // đang dở NV khác
+    return id;
+  }
+  return null;
+}
+// Thông tin NV gửi client: { active: {id,name,text,done} | null, done: [...] }
+function questInfo(p) {
+  const a = p.quests.active, done = p.quests.done;
+  if (!a) return { active: null, done };
+  const q = QUESTS[a.id];
+  if (!q) return { active: null, done };
+  if (a.step >= q.objectives.length)
+    return { active: { id: a.id, name: q.name, text: 'Về trả nhiệm vụ!', done: true }, done };
+  const o = q.objectives[a.step];
+  const prog = o.count ? ` (${Math.min(a.count, o.count)}/${o.count})` : '';
+  return { active: { id: a.id, name: q.name, step: a.step, count: a.count, text: o.text + prog, done: false }, done };
+}
+// Marker trên đầu NPC: '!' có NV mới, '?' trả được
+function npcMarkers(p) {
+  const mk = {};
+  const nid = acceptAvailQuest(p);
+  const a = p.quests.active;
+  for (const id of Object.keys(NPCS)) {
+    if (nid && QUESTS[nid].giver === id) mk[id] = '!';
+    if (a) {
+      const q = QUESTS[a.id];
+      if (q && a.step >= q.objectives.length && q.turnin === id) mk[id] = '?';
+    }
+  }
+  return mk;
+}
+function refreshQuest(p) {
+  sendTo(p, { t: 'quest', ...questInfo(p) });
+  sendTo(p, { t: 'me', you: pubPlayer(p) }); // cập nhật marker
+}
+// Xong 1 bước mục tiêu -> sang bước tiếp
+function advanceStep(p) {
+  const a = p.quests.active; if (!a) return;
+  a.step++; a.count = 0;
+  refreshQuest(p);
+}
+// Kiểm tra mục tiêu đếm (collect/kill) đã đủ chưa
+function checkObjComplete(p) {
+  const a = p.quests.active; if (!a) return;
+  const q = QUESTS[a.id]; const o = q.objectives[a.step];
+  if (o && o.count && a.count >= o.count) {
+    advanceStep(p);
+    if (a.step >= q.objectives.length)
+      sendTo(p, { t: 'sys', text: '✅ Hoàn thành mục tiêu, về trả nhiệm vụ!' });
+  } else {
+    sendTo(p, { t: 'qprog', active: questInfo(p).active });
+  }
+}
+function defaultLines(npcId) {
+  return {
+    'chap-su-ly': ['Có việc gì? Đừng có lảng vảng ở đây.'],
+    'lao-tran': ['Quét sân thì phải quét tâm trước...'],
+    'duoc-tran-tu': ['Tạp vụ cũng là đệ tử của tông môn. Cố gắng nhé.'],
+    'tieu-ho': ['Huynh đệ! Hôm nay có gì vui không?'],
+  }[npcId] || ['...'];
+}
+function handleTalk(p, npcId) {
+  const npc = NPCS[npcId]; if (!npc) return;
+  const a = p.quests.active;
+  let lines = [], canAccept = false, canTurnin = false, qid = null;
+  // 1. Mục tiêu talk của NV đang làm -> hoàn thành bước
+  if (a) {
+    const q = QUESTS[a.id];
+    if (q && a.step < q.objectives.length) {
+      const o = q.objectives[a.step];
+      if (o.type === 'talk' && o.npc === npcId) advanceStep(p);
+    }
+    const q2 = QUESTS[a.id];
+    if (q2 && a.step >= q2.objectives.length && q2.turnin === npcId) {
+      canTurnin = true; qid = a.id; lines = q2.done;
+    }
+  }
+  // 2. NPC là giver của NV khả dụng -> chào nhận NV
+  if (!canTurnin) {
+    const nid = acceptAvailQuest(p);
+    if (nid && QUESTS[nid].giver === npcId) { canAccept = true; qid = nid; lines = QUESTS[nid].offer; }
+  }
+  if (!lines.length) lines = defaultLines(npcId);
+  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept, canTurnin, qid });
+}
+function acceptQuest(p, qid) {
+  const nid = acceptAvailQuest(p);
+  if (!nid || nid !== qid) { sendTo(p, { t: 'err', text: 'Chưa thể nhận nhiệm vụ này.' }); return; }
+  const q = QUESTS[qid];
+  p.quests.active = { id: qid, step: 0, count: 0 };
+  broadcast({ t: 'sys', text: `📜 ${p.name} nhận nhiệm vụ [${q.name}]` });
+  if (qid === 'C1-06') spawnBoss(p.x + 150, p.y + 100, p); // boss xuất hiện khi nhận NV
+  refreshQuest(p);
+}
+function turninQuest(p, qid) {
+  const a = p.quests.active;
+  if (!a || a.id !== qid) return;
+  const q = QUESTS[qid];
+  if (a.step < q.objectives.length) { sendTo(p, { t: 'err', text: 'Chưa hoàn thành mục tiêu!' }); return; }
+  const r = q.reward;
+  if (r.tv) gainTv(p, r.tv);
+  if (r.lt) p.lt += r.lt;
+  if (r.dch) p.dch += r.dch;
+  if (r.potions) p.potions += r.potions;
+  if (r.ketbai) p.ketbai = true;
+  if (r.title && !p.titles.includes(r.title)) p.titles.push(r.title);
+  if (qid === 'C1-03') p.carrying = false;
+  p.quests.done.push(qid);
+  p.quests.active = null;
+  broadcast({ t: 'sys', text: `🎉 ${p.name} hoàn thành nhiệm vụ [${q.name}]!` });
+  refreshQuest(p);
+}
+// Vật thu thập có hợp với NV đang làm không
+function gatherable(p, it) {
+  const a = p.quests.active; if (!a) return false;
+  if (it.type === 'la') return a.id === 'C1-02' && a.step === 0;
+  if (it.type === 'linh-thao' || it.type === 'linh-thao-heo') return a.id === 'C1-04' && a.step === 0;
+  if (it.type === 'gieng') return a.id === 'C1-03' && a.step === 0;
+  return false;
+}
+function startInteract(p, id) {
+  const it = INTERACTS.find(i => i.id === id);
+  if (!it || p.channel) return;
+  if (p.collected.includes(id)) return;
+  if (Math.hypot(p.x - it.x, p.y - it.y) > 130) { sendTo(p, { t: 'err', text: 'Lại gần hơn đã!' }); return; }
+  if (!gatherable(p, it)) { sendTo(p, { t: 'err', text: 'Chưa cần thứ này.' }); return; }
+  p.channel = { id, until: Date.now() + 3000 };
+  sendTo(p, { t: 'channel', dur: 3000 });
+}
+function finishInteract(p) {
+  const it = INTERACTS.find(i => i.id === p.channel.id);
+  p.channel = null;
+  if (!it || p.collected.includes(it.id)) return;
+  p.collected.push(it.id);
+  const a = p.quests.active;
+  if (it.type === 'gieng') {
+    if (a && a.id === 'C1-03' && a.step === 0) { p.carrying = true; advanceStep(p); }
+    sendTo(p, { t: 'sys', text: '💧 Đã lấy nước Linh Tuyền! Gánh về cho Dược Trần Tử (đi chậm).' });
+  } else if (it.type === 'la') {
+    if (a && a.id === 'C1-02' && a.step === 0) { a.count++; checkObjComplete(p); }
+  } else if (it.type === 'linh-thao') {
+    if (a && a.id === 'C1-04' && a.step === 0) { a.count++; checkObjComplete(p); }
+  } else if (it.type === 'linh-thao-heo') {
+    if (a && a.id === 'C1-04' && a.step === 0) {
+      a.count = Math.max(0, a.count - 1); // hái nhầm gốc héo: -1
+      sendTo(p, { t: 'sys', text: '🥀 Hái nhầm Linh Thảo Héo! (-1)' });
+      sendTo(p, { t: 'qprog', active: questInfo(p).active });
+    }
+  }
+  broadcast({ t: 'gathered', id: it.id });
+}
+
+// ---------- Boss Thiết Bì Dã Trư (C1-06) ----------
+function spawnBoss(x, y, nearP) {
+  for (const m of monsters.values()) if (!m.dead && m.boss) return m; // chỉ 1 boss mỗi lúc
+  const cfg = { hp: 1500, dmg: 35, tv: 300, ltMin: 20, ltMax: 20, speed: 150, aggro: 9999 };
+  const m = { id: midSeq++, type: 'thiet-bi-da-tru', cfg, boss: true, bursted: false,
+    x: clamp(x, 200, WORLD_W - 200), y: clamp(y, 200, WORLD_H - 200),
+    hp: cfg.hp, maxhp: cfg.hp, state: 'chase', wx: 0, wy: 0, wt: 0,
+    target: nearP || null, atkAt: 0, dead: false, respawnAt: 0 };
+  monsters.set(m.id, m);
+  broadcast({ t: 'sys', text: '🐗 Thiết Bì Dã Trư xuất hiện! Cẩn thận!' });
+  return m;
 }
 
 // ---------- Chiến đấu ----------
@@ -170,12 +416,22 @@ function damageMonster(m, dmg, p) {
   if (m.dead) return;
   m.hp -= dmg;
   m.target = p; m.state = 'chase';
+  // Bộc phát Hỗn Độn Linh Căn: lần đầu máu boss <30% -> đánh 400 + hất văng
+  if (m.boss && !m.bursted && p && m.hp < m.maxhp * 0.3) {
+    m.bursted = true;
+    m.hp -= 400;
+    const a = Math.atan2(m.y - p.y, m.x - p.x);
+    m.x = clamp(m.x + Math.cos(a) * 200, 0, WORLD_W);
+    m.y = clamp(m.y + Math.sin(a) * 200, 0, WORLD_H);
+    broadcast({ t: 'burst', x: Math.round(p.x), y: Math.round(p.y), by: p.name });
+    broadcast({ t: 'sys', text: `⚡ Hỗn Độn Linh Căn của ${p.name} bộc phát!` });
+  }
   broadcast({ t: 'dmg', mid: m.id, dmg: Math.round(dmg), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp });
   if (m.hp <= 0) killMonster(m, p);
 }
 
 function killMonster(m, p) {
-  m.dead = true; m.respawnAt = Date.now() + 20000;
+  m.dead = true; m.respawnAt = Date.now() + (m.boss ? 60000 : 20000);
   const ltGain = m.cfg.ltMin + Math.floor(Math.random() * (m.cfg.ltMax - m.cfg.ltMin + 1));
   if (p && !p.dead) {
     p.lt += ltGain;
@@ -183,6 +439,16 @@ function killMonster(m, p) {
     // 15% rơi Hồi Khí Đan
     if (Math.random() < 0.15) { p.potions++; sendTo(p, { t: 'loot', text: '+1 Hồi Khí Đan' }); }
     sendTo(p, { t: 'loot', text: `+${ltGain} linh thạch · +${m.cfg.tv} tu vi` });
+  }
+  // NV giết quái: mọi player đang làm NV đúng loại quái đều được +1
+  for (const pl of players.values()) {
+    if (pl.dead || !pl.quests || !pl.quests.active) continue;
+    const a = pl.quests.active, q = QUESTS[a.id];
+    const o = q && q.objectives[a.step];
+    if (o && o.type === 'kill' && o.mob === m.type && a.count < o.count) {
+      a.count++;
+      checkObjComplete(pl);
+    }
   }
   broadcast({ t: 'mdie', mid: m.id });
 }
@@ -268,6 +534,7 @@ function hurtPlayer(p, dmg) {
   p.hp -= dmg;
   if (p.hp <= 0) {
     p.hp = 0; p.dead = true; p.respawnAt = Date.now() + 5000; p.moving = false;
+    p.channel = null; // chết thì hủy thu thập
     broadcast({ t: 'sys', text: `💀 ${p.name} đã ngã xuống...` });
   }
   sendTo(p, { t: 'me', you: pubPlayer(p) });
@@ -286,10 +553,12 @@ setInterval(() => {
     }
     if (p.moving && p.tx !== null) {
       const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
-      const step = PLAYER_SPEED * dt;
+      const step = PLAYER_SPEED * (p.carrying ? 0.55 : 1) * dt; // gánh nước đi chậm
       if (d <= step + 2) { p.x = p.tx; p.y = p.ty; p.moving = false; p.tx = p.ty = null; }
       else { p.x += dx / d * step; p.y += dy / d * step; }
     }
+    // Thu thập: đủ 3s vận công -> thu
+    if (p.channel && now >= p.channel.until) finishInteract(p);
     // Hồi linh lực
     p.mp = Math.min(p.maxmp, p.mp + p.maxmp * 0.04 * dt);
   }
@@ -297,7 +566,14 @@ setInterval(() => {
   // Quái AI
   for (const m of monsters.values()) {
     if (m.dead) {
-      if (now >= m.respawnAt) { const nm = spawnMonster(m.type); monsters.delete(m.id); }
+      if (now >= m.respawnAt) {
+        if (m.boss) {
+          // Boss chỉ respawn nếu còn người chơi đang làm C1-06
+          const need = [...players.values()].some(pl => pl.quests && pl.quests.active && pl.quests.active.id === 'C1-06');
+          if (need) spawnBoss(SPAWN.x + 300, SPAWN.y + 200, null);
+          monsters.delete(m.id);
+        } else { const nm = spawnMonster(m.type); monsters.delete(m.id); }
+      }
       continue;
     }
     if (m.state === 'idle') {
@@ -337,4 +613,4 @@ setInterval(() => {
 // Lưu định kỳ 30s
 setInterval(() => { for (const p of players.values()) savePlayer(p); }, 30000);
 
-server.listen(PORT, () => console.log(`Thiên Kiêu Lộ P1 chạy ở cổng ${PORT}`));
+server.listen(PORT, () => console.log(`Thiên Kiêu Lộ P2 chạy ở cổng ${PORT}`));

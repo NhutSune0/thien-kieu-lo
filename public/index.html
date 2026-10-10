@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Thiên Kiêu Lộ — P1</title>
+<title>Thiên Kiêu Lộ — P2</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -33,12 +33,23 @@
     <div id="stat-line"><span id="lvl-text"></span> · <span id="lt-text"></span> · <span id="pot-text"></span></div>
   </div>
   <div id="skillbar"></div>
+  <button id="autobtn" title="Tự động đánh quái (T)">Auto</button>
   <canvas id="minimap" width="110" height="82"></canvas>
+  <!-- Thanh máu boss -->
+  <div id="bossbar" style="display:none">
+    <div id="boss-name">🐗 Thiết Bì Dã Trư</div>
+    <div class="boss-hpbar"><div id="boss-fill"></div><span id="boss-hptext"></span></div>
+  </div>
+  <!-- Tracker nhiệm vụ -->
+  <div id="quest-tracker" style="display:none">
+    <div id="qt-name"></div><div id="qt-obj"></div>
+  </div>
   <div id="mutebtn">🔊</div>
   <!-- Nút menu UI -->
   <div id="menubtns">
     <button data-p="panel-char" title="Nhân vật (C)">👤</button>
     <button data-p="panel-bag" title="Túi đồ (B)">🎒</button>
+    <button data-p="panel-quest" title="Nhiệm vụ (N)">📜</button>
     <button data-p="panel-map" title="Bản đồ (M)">🗺️</button>
     <button id="chatbtn" title="Chat (Enter)">💬</button>
     <button data-p="panel-settings" title="Cài đặt (Esc)">⚙️</button>
@@ -58,6 +69,19 @@
     <div class="p-head">🗺️ Quảng Trường Tông Môn <span class="p-x" data-x>✕</span></div>
     <div class="p-body"><canvas id="bigmap" width="330" height="248"></canvas></div>
   </div>
+  <!-- Panel nhiệm vụ -->
+  <div id="panel-quest" class="panel">
+    <div class="p-head">📜 Nhiệm vụ <span class="p-x" data-x>✕</span></div>
+    <div class="p-body" id="quest-body"></div>
+  </div>
+  <!-- Panel thoại NPC -->
+  <div id="panel-dlg" class="panel">
+    <div class="p-head">💬 <span id="dlg-name"></span> <span class="p-x" data-x>✕</span></div>
+    <div class="p-body">
+      <div id="dlg-top"><img id="dlg-img" alt="NPC"><div id="dlg-lines"></div></div>
+      <div id="dlg-btns"></div>
+    </div>
+  </div>
   <!-- Panel cài đặt -->
   <div id="panel-settings" class="panel">
     <div class="p-head">⚙️ Cài đặt <span class="p-x" data-x>✕</span></div>
@@ -68,7 +92,7 @@
   <div id="chatinput-wrap" style="display:none"><input id="chatinput" maxlength="80" placeholder="Nhắn kênh thế giới..."></div>
   <div id="sysmsg"></div>
   <div id="dead-overlay" style="display:none"><div>💀 Đã ngã xuống...<br><span>Hồi sinh sau <b id="dead-count">5</b>s</span></div></div>
-  <div id="hint">Chạm: di chuyển · Chạm quái: đánh · Chạm icon: dùng skill</div>
+  <div id="hint">Chạm: di chuyển · Chạm quái/NPC: tương tác · N: nhiệm vụ · T: auto</div>
 </div>
 
 <script src="js/game.js"></script>

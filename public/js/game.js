@@ -10,6 +10,12 @@ let camX = WORLD_W/2, camY = WORLD_H/2;
 let SKILLS = {}, ORDER = [];
 let particles = [], dmgNums = [], fxAnims = [];
 let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
+// P2: NPC, nhiệm vụ, vật tương tác, auto
+let npcs = [], myQuest = { active: null, done: [] };
+let INTERACTS = new Map(), collected = new Set();
+let channelUntil = 0, channelDur = 1;
+let pendingTalk = null, pendingInteract = null; // npc/vật đang muốn tới
+let autoOn = false, burstFx = null;
 const atkAnim = new Map(), castAnim = new Map();   // name -> timestamp kết thúc anim đánh/vận công
 const hitFlash = new Map(), hitPop = new Map();    // mid -> timestamp flash/nảy khi trúng đòn
 const dyingMobs = new Map();                        // mid -> mob đang ngã xuống (fade out)
@@ -42,7 +48,8 @@ const SFX = {
 
 // ---------- Load assets ----------
 const IMG = {};
-const KEYED = new Set(['walk', 'attack', 'cast', 'm_hac', 'm_xa', 'm_lang']); // sprite cần tách nền trắng
+const KEYED = new Set(['walk', 'attack', 'cast', 'm_hac', 'm_xa', 'm_lang',
+  'npc_ly', 'npc_tran', 'npc_duoc', 'npc_ho', 'm_boss']); // sprite cần tách nền trắng
 function loadImg(key, src) { return new Promise(res => { const i = new Image(); i.onload = () => res(IMG[key] = KEYED.has(key) ? keyOutWhite(i) : i); i.onerror = () => res(null); i.src = src; }); }
 // Tách nền trắng: flood-fill từ viền ảnh, chỉ xóa trắng liền với viền (không ăn vào áo trắng nhân vật)
 function keyOutWhite(img) {
@@ -72,9 +79,16 @@ const ASSETS = [
   ['map', 'assets/map-quang-truong.webp'],
   ['walk', 'assets/nvc-walk.webp'], ['attack', 'assets/nvc-attack.webp'], ['cast', 'assets/nvc-cast.webp'],
   ['m_hac', 'assets/mob-hac-mao-thu.webp'], ['m_xa', 'assets/mob-thanh-truc-xa.webp'], ['m_lang', 'assets/mob-da-hoa-lang.webp'],
+  ['npc_ly', 'assets/npc-chap-su-ly.webp'], ['npc_tran', 'assets/npc-lao-tran.webp'],
+  ['npc_duoc', 'assets/npc-duoc-tran-tu.webp'], ['npc_ho', 'assets/npc-tieu-ho.webp'],
+  ['m_boss', 'assets/mob-thiet-bi-da-tru.webp'],
 ];
+const NPC_IMG = { 'chap-su-ly': 'npc_ly', 'lao-tran': 'npc_tran', 'duoc-tran-tu': 'npc_duoc', 'tieu-ho': 'npc_ho' };
+const NPC_PORTRAIT = { 'chap-su-ly': 'assets/npc-chap-su-ly.webp', 'lao-tran': 'assets/npc-lao-tran.webp',
+  'duoc-tran-tu': 'assets/npc-duoc-tran-tu.webp', 'tieu-ho': 'assets/npc-tieu-ho.webp' };
+const IT_EMOJI = { 'la': '🍂', 'linh-thao': '🌿', 'linh-thao-heo': '🥀', 'gieng': '⛲' };
 const ICONS = { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp','van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp' };
-const MOB_IMG = { 'hac-mao-thu':'m_hac', 'thanh-truc-xa':'m_xa', 'da-hoa-lang':'m_lang' };
+const MOB_IMG = { 'hac-mao-thu':'m_hac', 'thanh-truc-xa':'m_xa', 'da-hoa-lang':'m_lang', 'thiet-bi-da-tru':'m_boss' };
 const SKILL_NAMES = { 'linh-kiem-tram':'Linh Kiếm Trảm','cuu-loi-kiem':'Cửu Lôi Kiếm Quyết','phan-thien-kiem':'Phần Thiên Kiếm','van-kiem-quy-tong':'Vạn Kiếm Quy Tông','hon-don-kim-chung':'Hỗn Độn Kim Chung','khai-thien-nhat-kiem':'Khai Thiên Nhất Kiếm' };
 
 // ---------- WebSocket ----------
@@ -92,13 +106,18 @@ function handle(m) {
     document.getElementById('game').classList.remove('hidden');
     resize();
     SKILLS = m.skills; ORDER = m.order; players.set(m.you.name, m.you);
-    UI.buildSkills(); UI.updateMe(m.you);
+    npcs = m.npcs || []; myQuest = m.quest || { active: null, done: [] };
+    INTERACTS.clear(); (m.interacts || []).forEach(it => INTERACTS.set(it.id, it));
+    collected = new Set(m.collected || []);
+    UI.buildSkills(); UI.updateMe(m.you); UI.updateQuest();
   } else if (m.t === 'snap') {
     const seen = new Set();
     for (const s of m.ps) { seen.add(s.name); players.set(s.name, Object.assign(players.get(s.name) || {}, s)); }
     for (const [k] of players) if (!seen.has(k)) players.delete(k);
     monsters.clear();
     for (const s of m.ms) monsters.set(s.id, s);
+    const boss = [...monsters.values()].find(x => x.type === 'thiet-bi-da-tru');
+    UI.updateBoss(boss || null);
   } else if (m.t === 'me') {
     players.set(m.you.name, Object.assign(players.get(m.you.name) || {}, m.you));
     UI.updateMe(m.you);
@@ -121,6 +140,16 @@ function handle(m) {
   else if (m.t === 'chat') UI.addChat(m.name, m.text);
   else if (m.t === 'err') sysMsg('⚠️ ' + m.text);
   else if (m.t === 'leave') players.delete(m.name);
+  // P2: nhiệm vụ / NPC / thu thập / burst
+  else if (m.t === 'dlg') UI.showDlg(m);
+  else if (m.t === 'quest') { myQuest = { active: m.active, done: m.done }; UI.updateQuest(); }
+  else if (m.t === 'qprog') { myQuest.active = m.active; UI.updateQuest(); }
+  else if (m.t === 'gathered') { collected.add(m.id); SFX.loot(); }
+  else if (m.t === 'channel') { channelDur = m.dur / 1000 || 3; channelUntil = m.dur > 0 ? performance.now() + m.dur : 0; }
+  else if (m.t === 'burst') {
+    burstFx = { until: performance.now() + 1200, x: m.x, y: m.y };
+    shake = Math.max(shake, 16); SFX.skill();
+  }
 }
 
 function sysMsg(text) {
@@ -217,17 +246,23 @@ function atkRow(dir) {
 // Sheet quái 3x3: cột 0=đứng 1=chạy 2=đánh · hàng 0=trước 1=sau 2=ngang — thêm squash & stretch cho đỡ "ảnh tĩnh"
 function drawMob(img, m, scale) {
   if (!img) return;
-  const fw = img.width / 3, fh = img.height / 3;
   const now = performance.now();
-  const col = (mobAtk.get(m.id) > now) ? 2 : (m.moving ? 1 : 0); // tự đổi thế: đánh / chạy / đứng
   const bob = Math.sin(walkT * 7 + m.id) * 3;
   const sq = Math.sin(walkT * 9 + m.id * 1.7);          // co giãn nhịp nhàng
   const pop = hitPop.get(m.id) > now ? 1.14 : 1;        // nảy lên khi trúng đòn
-  const dw = fw * scale * (1 - sq * 0.03) * pop, dh = fh * scale * (1 + sq * 0.045) * pop;
   ctx.save();
   ctx.translate(m.rx, m.ry + bob);
   ctx.rotate(Math.sin(walkT * 5 + m.id) * 0.035);        // lắc nhẹ
   if (hitFlash.get(m.id) > now) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 26; } // chớp trắng khi trúng đòn
+  if (m.type === 'thiet-bi-da-tru') { // boss: 1 frame, vẽ cao ~170px
+    const k = 170 / img.height, dw = img.width * k, dh = 170;
+    ctx.drawImage(img, -dw/2, -dh, dw, dh);
+    ctx.restore();
+    return;
+  }
+  const fw = img.width / 3, fh = img.height / 3;
+  const col = (mobAtk.get(m.id) > now) ? 2 : (m.moving ? 1 : 0); // tự đổi thế: đánh / chạy / đứng
+  const dw = fw * scale * (1 - sq * 0.03) * pop, dh = fh * scale * (1 + sq * 0.045) * pop;
   ctx.drawImage(img, fw * col, 0, fw, fh, -dw/2, -dh, dw, dh);
   ctx.restore();
 }
@@ -275,10 +310,44 @@ function loop(t) {
   for (const m of monsters.values()) {
     if (!inView(m.rx, m.ry)) continue;
     draws.push({ y: m.ry, f: () => {
-      shadow(m.rx, m.ry, 30);
+      const isBoss = m.type === 'thiet-bi-da-tru';
+      shadow(m.rx, m.ry, isBoss ? 52 : 30);
       drawMob(IMG[MOB_IMG[m.type]], m, 0.28);
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.rx - 24, m.ry - 118, 48, 6);
-      ctx.fillStyle = '#e33'; ctx.fillRect(m.rx - 24, m.ry - 118, 48 * (m.hp / m.maxhp), 6);
+      const bw = isBoss ? 110 : 48, by = isBoss ? m.ry - 205 : m.ry - 118;
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(m.rx - bw/2, by, bw, 6);
+      ctx.fillStyle = isBoss ? '#f80' : '#e33'; ctx.fillRect(m.rx - bw/2, by, bw * (m.hp / m.maxhp), 6);
+      if (isBoss) { ctx.fillStyle = '#ffb060'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🐗 Thiết Bì Dã Trư', m.rx, by - 8); }
+    }});
+  }
+  // NPC Chương 1: vẽ 1 frame + tên + marker !/?
+  {
+    const meQ = players.get(myName);
+    for (const n of npcs) {
+      if (!inView(n.x, n.y)) continue;
+      draws.push({ y: n.y, f: () => {
+        const img = IMG[NPC_IMG[n.id]];
+        shadow(n.x, n.y, 26);
+        let dh = 150;
+        if (img) { const sc = 150 / img.height, dw = img.width * sc; dh = 150; ctx.drawImage(img, n.x - dw/2, n.y - dh, dw, dh); }
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffe9b0'; ctx.font = '13px sans-serif';
+        ctx.fillText(n.name, n.x, n.y - dh - 34);
+        const mk = meQ && meQ.qm && meQ.qm[n.id];
+        if (mk) { // marker vàng nảy nhẹ
+          ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = '#ffd94a';
+          ctx.shadowColor = '#ffd94a'; ctx.shadowBlur = 8;
+          ctx.fillText(mk, n.x, n.y - dh - 58 + Math.sin(walkT * 5) * 4);
+          ctx.shadowBlur = 0;
+        }
+      }});
+    }
+  }
+  // Vật tương tác: lá / thảo / giếng (vẽ emoji)
+  for (const it of INTERACTS.values()) {
+    if (collected.has(it.id) || !inView(it.x, it.y)) continue;
+    draws.push({ y: it.y, f: () => {
+      ctx.font = '30px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(IT_EMOJI[it.type] || '❔', it.x, it.y - 6);
     }});
   }
   // Quái đang ngã xuống: mờ dần rồi biến mất
@@ -321,6 +390,11 @@ function loop(t) {
       if (p.shield) { // vòng kim chung quanh người
         ctx.strokeStyle = 'rgba(255,217,122,.9)'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(p.rx, p.ry - 52, 38 + Math.sin(walkT*6)*2, 0, Math.PI*2); ctx.stroke();
+      }
+      if (isMe && channelUntil > performance.now()) { // vòng tiến độ thu thập
+        const pr = 1 - (channelUntil - performance.now()) / (channelDur * 1000);
+        ctx.strokeStyle = 'rgba(125,255,154,.95)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(p.rx, p.ry - 60, 26, -Math.PI/2, -Math.PI/2 + Math.max(0, Math.min(1, pr)) * Math.PI*2); ctx.stroke();
       }
       ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(p.name, p.rx, p.ry - 126);
@@ -391,6 +465,26 @@ function loop(t) {
   dmgNums = dmgNums.filter(d => d.life > 0);
 
   ctx.restore();
+  // Cinematic bộc phát Hỗn Độn Linh Căn: tối màn hình + 5 luồng sáng ngũ hành xoay + flash trắng
+  if (burstFx) {
+    const left = burstFx.until - performance.now();
+    if (left <= 0) burstFx = null;
+    else {
+      const pr = 1 - left / 1200;
+      ctx.fillStyle = `rgba(2,2,12,${0.55 * (1 - pr)})`;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      const px = (burstFx.x - camX) * ZOOM + cv.width / 2, py = (burstFx.y - camY) * ZOOM + cv.height / 2;
+      const cols = ['#ff5a5a', '#ffd94a', '#7dff9a', '#6ab8ff', '#c07dff'];
+      for (let i = 0; i < 5; i++) {
+        const a = pr * 7 + i * Math.PI * 2 / 5, r = 50 + pr * 170;
+        ctx.strokeStyle = cols[i]; ctx.lineWidth = 5; ctx.shadowColor = cols[i]; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.arc(px, py, r, a, a + 1.3); ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 0.75 - pr)})`;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+    }
+  }
   UI.drawMinimap();
   // Overlay hồi sinh khi ngã xuống
   const deadEl = document.getElementById('dead-overlay');
@@ -405,6 +499,20 @@ function loop(t) {
     if (!m) pendingAtk = null;
     else if (Math.hypot(m.x - me.x, m.y - me.y) < 110) { send({ t: 'attack' }); pendingAtk = null; }
     else if (!me.moving) send({ t: 'move', x: Math.round(m.x), y: Math.round(m.y) });
+  }
+  // Tự nói chuyện khi đã lại gần NPC
+  if (pendingTalk && me && !me.dead) {
+    const n = npcs.find(x => x.id === pendingTalk);
+    if (!n) pendingTalk = null;
+    else if (Math.hypot(n.x - me.x, n.y - me.y) < 130) { send({ t: 'talk', npc: n.id }); pendingTalk = null; }
+    else if (!me.moving) send({ t: 'move', x: Math.round(n.x), y: Math.round(n.y + 60) });
+  }
+  // Tự thu thập khi đã lại gần vật
+  if (pendingInteract && me && !me.dead) {
+    const it = INTERACTS.get(pendingInteract);
+    if (!it || collected.has(it.id)) pendingInteract = null;
+    else if (Math.hypot(it.x - me.x, it.y - me.y) < 130) { send({ t: 'interact', id: it.id }); pendingInteract = null; }
+    else if (!me.moving) send({ t: 'move', x: Math.round(it.x), y: Math.round(it.y) });
   }
 }
 
@@ -422,18 +530,38 @@ document.getElementById('mutebtn').addEventListener('pointerdown', e => {
 cv.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
   SFX.click();
+  setAuto(false); // bấm tay thì tắt Auto
   const wx = camX + (e.clientX - cv.width/2) / ZOOM;
   const wy = camY + (e.clientY - cv.height/2) / ZOOM;
   fxAnims.push({ kind: 'click', x: wx, y: wy, life: 0.35 }); // ripple báo đã nhận lệnh
-  // Click trúng quái -> tự chạy lại gần rồi đánh (như game thường)
-  let best = null, bd = 80 / ZOOM;
-  for (const m of monsters.values()) { const d = Math.hypot(m.x - wx, m.y - wy); if (d < bd) { bd = d; best = m; } }
+  pendingAtk = null; pendingTalk = null; pendingInteract = null;
+  // 1. Click NPC -> lại gần rồi nói chuyện
+  let bn = null, bd = 70 / ZOOM;
+  for (const n of npcs) { const d = Math.hypot(n.x - wx, n.y - wy); if (d < bd) { bd = d; bn = n; } }
+  if (bn) {
+    pendingTalk = bn.id;
+    send({ t: 'move', x: Math.round(bn.x), y: Math.round(bn.y + 60) });
+    return;
+  }
+  // 2. Click vật tương tác -> lại gần rồi thu thập
+  let bi = null, id2 = 70 / ZOOM;
+  for (const it of INTERACTS.values()) {
+    if (collected.has(it.id)) continue;
+    const d = Math.hypot(it.x - wx, it.y - wy); if (d < id2) { id2 = d; bi = it; }
+  }
+  if (bi) {
+    pendingInteract = bi.id;
+    send({ t: 'move', x: Math.round(bi.x), y: Math.round(bi.y) });
+    return;
+  }
+  // 3. Click trúng quái -> tự chạy lại gần rồi đánh (như game thường)
+  let best = null, md = 80 / ZOOM;
+  for (const m of monsters.values()) { const d = Math.hypot(m.x - wx, m.y - wy); if (d < md) { md = d; best = m; } }
   if (best) {
     pendingAtk = best.id;
     send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });
     return;
   }
-  pendingAtk = null;
   send({ t: 'move', x: Math.round(wx), y: Math.round(wy) });
 });
 addEventListener('keydown', e => {
@@ -444,11 +572,13 @@ addEventListener('keydown', e => {
     else if (e.key === 'Escape') UI.closeChat(false);
     return;
   }
-  if (k >= '1' && k <= '6') { const id = ORDER[+k - 1]; if (id) UI.trySkill(id); }
-  else if (k === 'q') send({ t: 'potion' });
+  if (k >= '1' && k <= '6') { const id = ORDER[+k - 1]; if (id) { setAuto(false); UI.trySkill(id); } }
+  else if (k === 'q') { setAuto(false); send({ t: 'potion' }); }
   else if (k === 'c') UI.togglePanel('panel-char');
   else if (k === 'b') UI.togglePanel('panel-bag');
   else if (k === 'm') UI.togglePanel('panel-map');
+  else if (k === 'n') UI.togglePanel('panel-quest');
+  else if (k === 't') setAuto(!autoOn);
   else if (k === 'enter') UI.openChat();
   else if (k === 'escape') UI.closePanels();
 });
@@ -469,6 +599,26 @@ function applySetting(k, v) {
   if (k === 'sound') { muted = !v; document.getElementById('mutebtn').textContent = v ? '🔊' : '🔇'; }
 }
 
+// ---------- Auto: tự động tu luyện ----------
+function setAuto(v) {
+  autoOn = v;
+  const b = document.getElementById('autobtn');
+  if (b) b.classList.toggle('on', v);
+}
+document.getElementById('autobtn').addEventListener('pointerdown', e => { e.stopPropagation(); SFX.click(); setAuto(!autoOn); });
+setInterval(() => { // vòng auto 400ms
+  if (!autoOn) return;
+  const me = players.get(myName);
+  if (!me || me.dead) return;
+  if (UI.chatOpen() || document.querySelector('.panel.open')) return; // đang chat / mở panel thì nghỉ
+  if (me.hp < me.maxhp * 0.3 && me.potions > 0) { send({ t: 'potion' }); return; } // tự uống đan
+  let best = null, bd = 1000;
+  for (const m of monsters.values()) { const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } }
+  if (!best) return;
+  if (bd > 110) send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });
+  else send({ t: 'attack' });
+}, 400);
+
 // ---------- Khởi động ----------
 document.getElementById('join-btn').onclick = async () => {
   const btn = document.getElementById('join-btn');
@@ -481,5 +631,7 @@ document.getElementById('join-btn').onclick = async () => {
   connect(name);
   requestAnimationFrame(loop);
 };
-window.__game = { get myName() { return myName; }, players, monsters, send, applySetting, SKILL_NAMES, get SKILLS() { return SKILLS; }, get ORDER() { return ORDER; } };
+window.__game = { get myName() { return myName; }, players, monsters, send, applySetting, setAuto,
+  get quest() { return myQuest; }, get npcs() { return npcs; }, NPC_PORTRAIT,
+  SKILL_NAMES, get SKILLS() { return SKILLS; }, get ORDER() { return ORDER; } };
 })();

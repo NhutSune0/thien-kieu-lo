@@ -51,7 +51,38 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; f
 .set-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #232c52; }
 .set-row button { background: #2a3560; color: #fff; border: 1px solid #4a5a8a; border-radius: 6px; padding: 5px 14px; cursor: pointer; }
 .set-row button.on { background: #2a7a3a; border-color: #2a7a3a; }
-/* ---- Chat ---- */
+/* ---- P2: Auto / Nhiệm vụ / Boss ---- */
+#autobtn { position: absolute; bottom: 14px; left: calc(50% - 256px); width: 56px; height: 56px; border-radius: 50%;
+  font-size: 13px; font-weight: bold; cursor: pointer; color: #8fa0c8;
+  background: rgba(10,14,30,.8); border: 2px solid #4a5a8a; }
+#autobtn.on { color: #0a1410; background: #5fd97a; border-color: #5fd97a; box-shadow: 0 0 14px #5fd97a88; }
+@media (max-width: 700px) {
+  #autobtn { left: 12px; bottom: 84px; }
+  #bossbar { top: 100px; width: 260px; }
+}
+#quest-tracker { position: absolute; top: 108px; left: 10px; max-width: 280px; pointer-events: none;
+  background: rgba(10,14,30,.72); border: 1px solid #4a5a8a; border-left: 3px solid #ffd97a;
+  border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+#qt-name { color: #ffd97a; font-weight: bold; margin-bottom: 2px; }
+#qt-obj { color: #e8e4d8; }
+#bossbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 340px; max-width: 70vw; pointer-events: none; }
+#boss-name { text-align: center; font-size: 13px; font-weight: bold; color: #ffb060; text-shadow: 0 1px 3px #000; margin-bottom: 3px; }
+.boss-hpbar { position: relative; height: 16px; background: rgba(0,0,0,.6); border: 1px solid #7a3a1a; border-radius: 6px; overflow: hidden; }
+#boss-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #c60, #f80); transition: width .15s; }
+#boss-hptext { position: absolute; inset: 0; font-size: 10px; line-height: 16px; text-align: center; color: #fff; text-shadow: 0 1px 2px #000; }
+/* Panel thoại NPC */
+#dlg-top { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+#dlg-img { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; border: 2px solid #4a5a8a; flex-shrink: 0; }
+#dlg-lines p { margin-bottom: 8px; color: #e8e4d8; line-height: 1.6; }
+#dlg-lines p:first-child { color: #ffe9b0; }
+#dlg-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.dlg-btn { flex: 1; min-width: 100px; padding: 9px 10px; font-size: 14px; cursor: pointer; border-radius: 8px;
+  background: #2a3560; color: #fff; border: 1px solid #4a5a8a; }
+.dlg-btn.accept { background: #2a7a3a; border-color: #2a7a3a; font-weight: bold; }
+.dlg-btn.turnin { background: #a86a1a; border-color: #a86a1a; font-weight: bold; }
+.q-active { background: #10162c; border: 1px solid #4a5a8a; border-left: 3px solid #ffd97a; border-radius: 8px; padding: 10px 12px; }
+.q-active b { color: #ffd97a; }
+.q-active div { color: #e8e4d8; margin-top: 4px; }
 #chatlog { position: absolute; left: 10px; bottom: 84px; width: 300px; max-width: 70vw; max-height: 150px; overflow: hidden;
   display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; font-size: 12px; }
 #chatlog div { background: rgba(10,14,30,.72); border-radius: 6px; padding: 3px 9px; margin-top: 4px; color: #e8e4d8;

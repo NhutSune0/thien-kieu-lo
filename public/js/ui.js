@@ -45,6 +45,7 @@ function iconFile(id) {
 }
 function trySkill(id) {
   const sk = G().SKILLS[id]; if (!sk) return;
+  if (G().setAuto) G().setAuto(false); // bấm skill tay thì tắt Auto
   const now = Date.now();
   if (cds[id] && cds[id] > now) return;
   const me = G().players.get(G().myName);
@@ -94,6 +95,7 @@ function togglePanel(id) {
     if (id === 'panel-bag') renderBag();
     if (id === 'panel-map') { const bm = document.getElementById('bigmap'); drawMapOn(bm.getContext('2d'), bm.width, bm.height); }
     if (id === 'panel-settings') renderSettings();
+    if (id === 'panel-quest') renderQuestPanel();
   }
 }
 function closePanels() { document.querySelectorAll('.panel.open').forEach(x => x.classList.remove('open')); }
@@ -110,7 +112,10 @@ function renderChar() {
     <div class="row"><span>Công kích</span><b>⚔️ ${me.atk || 24}</b></div>
     <div class="row"><span>Phòng ngự</span><b>🛡️ ${me.def || 8}</b></div>
     <div class="row"><span>Tu vi</span><b>${fmt(me.tv)} / ${fmt(me.tvNeed)}</b></div>
-    <div class="row"><span>Linh thạch</span><b>💎 ${fmt(me.lt)}</b></div>`;
+    <div class="row"><span>Linh thạch</span><b>💎 ${fmt(me.lt)}</b></div>
+    <div class="row"><span>Điểm cống hiến</span><b>🏵️ ${fmt(me.dch || 0)}</b></div>
+    <div class="row"><span>Danh hiệu</span><b>${(me.titles && me.titles.length) ? me.titles.join(' · ') : '—'}</b></div>
+    <div class="row"><span>Kết bái</span><b>${me.ketbai ? '🤝 Trương Tiểu Hổ' : 'Chưa có'}</b></div>`;
 }
 function renderBag() {
   const me = G().players.get(G().myName); if (!me) return;
@@ -128,7 +133,7 @@ function renderSettings() {
   document.getElementById('settings-body').innerHTML = `
     <div class="set-row"><span>🔊 Âm thanh</span><button data-k="sound" class="${settings.sound ? 'on' : ''}">${settings.sound ? 'Bật' : 'Tắt'}</button></div>
     <div class="set-row"><span>📳 Rung màn hình</span><button data-k="shake" class="${settings.shake ? 'on' : ''}">${settings.shake ? 'Bật' : 'Tắt'}</button></div>
-    <div style="color:#66708c;font-size:12px;margin-top:8px">Thiên Kiêu Lộ · P1 Core</div>`;
+    <div style="color:#66708c;font-size:12px;margin-top:8px">Thiên Kiêu Lộ · P2</div>`;
   document.querySelectorAll('#settings-body [data-k]').forEach(b => b.onclick = () => {
     const k = b.dataset.k; settings[k] = !settings[k]; G().applySetting(k, settings[k]); renderSettings();
   });
@@ -157,5 +162,59 @@ function closeChat(sendIt) {
 }
 function chatOpen() { return document.getElementById('chatinput-wrap').style.display === 'block'; }
 
-window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings };
+// ---------- Nhiệm vụ ----------
+function updateQuest() {
+  const q = G().quest || { active: null, done: [] };
+  const tr = document.getElementById('quest-tracker');
+  if (q.active) {
+    tr.style.display = 'block';
+    document.getElementById('qt-name').textContent = '📜 ' + q.active.name;
+    document.getElementById('qt-obj').textContent = q.active.text;
+  } else tr.style.display = 'none';
+  if (document.getElementById('panel-quest').classList.contains('open')) renderQuestPanel();
+}
+function renderQuestPanel() {
+  const q = G().quest || { active: null, done: [] };
+  const doneCount = (q.done || []).length;
+  let html = '';
+  if (q.active) html += `<div class="q-active"><b>📜 ${q.active.name}</b><div>${q.active.text}</div></div>`;
+  else html += `<div style="color:#66708c">Chưa nhận nhiệm vụ nào.<br>Tìm NPC có dấu <b style="color:#ffd94a">!</b> vàng để nhận.</div>`;
+  html += `<div style="margin-top:10px;color:#8fa0c8;font-size:12px">Chương 1 · Tạp Dịch Viện: ${doneCount}/6 nhiệm vụ</div>`;
+  document.getElementById('quest-body').innerHTML = html;
+}
+
+// ---------- Khung thoại NPC ----------
+function showDlg(m) {
+  closePanels();
+  document.getElementById('dlg-name').textContent = m.name;
+  document.getElementById('dlg-img').src = (G().NPC_PORTRAIT || {})[m.npc] || '';
+  const lines = document.getElementById('dlg-lines'); lines.innerHTML = '';
+  m.lines.forEach(t => { const p = document.createElement('p'); p.textContent = t; lines.appendChild(p); });
+  const btns = document.getElementById('dlg-btns'); btns.innerHTML = '';
+  if (m.canAccept) {
+    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = 'Nhận nhiệm vụ';
+    b.onclick = () => { G().send({ t: 'accept', quest: m.qid }); closePanels(); };
+    btns.appendChild(b);
+  }
+  if (m.canTurnin) {
+    const b = document.createElement('button'); b.className = 'dlg-btn turnin'; b.textContent = 'Trả nhiệm vụ';
+    b.onclick = () => { G().send({ t: 'turnin', quest: m.qid }); closePanels(); };
+    btns.appendChild(b);
+  }
+  const bye = document.createElement('button'); bye.className = 'dlg-btn'; bye.textContent = 'Tạm biệt';
+  bye.onclick = closePanels;
+  btns.appendChild(bye);
+  document.getElementById('panel-dlg').classList.add('open');
+}
+
+// ---------- Thanh máu boss ----------
+function updateBoss(m) {
+  const el = document.getElementById('bossbar');
+  if (!m) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  document.getElementById('boss-fill').style.width = Math.max(0, m.hp / m.maxhp * 100) + '%';
+  document.getElementById('boss-hptext').textContent = `${Math.max(0, Math.ceil(m.hp))}/${m.maxhp}`;
+}
+
+window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings, showDlg, updateQuest, updateBoss };
 })();
