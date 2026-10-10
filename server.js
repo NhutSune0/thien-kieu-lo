@@ -643,7 +643,7 @@ function castSkill(p, id) {
       p.hp = Math.min(p.maxhp, p.hp + amt);
       broadcastMap(p.map, { t: 'healnum', x: Math.round(p.x), y: Math.round(p.y), txt: '+' + amt });
     }
-    fxm({ t: 'fx', kind: 'shield', x: Math.round(p.x), y: Math.round(p.y), dur: s.dur });
+    fxm({ t: 'fx', kind: 'shield', id, x: Math.round(p.x), y: Math.round(p.y), dur: s.dur });
     sendTo(p, { t: 'me', you: pubPlayer(p) });
     return;
   }
