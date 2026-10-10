@@ -654,7 +654,7 @@ function castSkill(p, id) {
     const amt = Math.round(p.maxhp * s.healMul);
     p.hp = Math.min(p.maxhp, p.hp + amt);
     if (s.atkBuffMul) { p.atkBuffMul = s.atkBuffMul; p.atkBuffUntil = now + s.atkBuffDur * 1000; }
-    fxm({ t: 'fx', kind: 'heal', x: Math.round(p.x), y: Math.round(p.y) });
+    fxm({ t: 'fx', kind: 'heal', id, x: Math.round(p.x), y: Math.round(p.y) });
     broadcastMap(p.map, { t: 'healnum', x: Math.round(p.x), y: Math.round(p.y), txt: '+' + amt });
     if (s.atkBuffMul) sendTo(p, { t: 'sys', text: `\u2694\uFE0F Cửu Chuyển Kim Đan: công kích +${Math.round((s.atkBuffMul-1)*100)}% trong ${s.atkBuffDur}s!` });
     sendTo(p, { t: 'me', you: pubPlayer(p) });
@@ -669,7 +669,7 @@ function castSkill(p, id) {
       until: now + s.dur * 1000, nextTick: now, tickMul: s.tickMul || 0,
       slowMul: s.slowMul || 0, slowDur: s.slowDur || 0, stunDur: s.stunDur || 0,
       owner: p, vis, map: p.map });
-    fxm({ t: 'zonefx', x: Math.round(zx), y: Math.round(zy), r: s.radius, dur: s.dur });
+    fxm({ t: 'zonefx', id, x: Math.round(zx), y: Math.round(zy), r: s.radius, dur: s.dur });
     sendTo(p, { t: 'me', you: pubPlayer(p) });
     return;
   }

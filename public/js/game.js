@@ -139,6 +139,17 @@ function handle(m) {
     const boss = [...monsters.values()].find(x => x.type === 'thiet-bi-da-tru');
     UI.updateBoss(boss || null);
   } else if (m.t === 'me') {
+    const old = players.get(m.you.name);
+    if (old && m.you.name === myName && m.you.level > (old.level || 0)) {
+      // Đột phá cảnh giới: cột sáng vàng + tên cảnh giới bay
+      fxAnims.push({ kind: 'pillar', x: m.you.x, y: m.you.y, life: 1.4, maxLife: 1.4, color: '#ffd94a' });
+      fxAnims.push({ kind: 'ring', x: m.you.x, y: m.you.y, r: 150, life: 0.9, color: '#ffd94a' });
+      fxAnims.push({ kind: 'flash', x: m.you.x, y: m.you.y - 60, r: 90, life: 0.4, color: '#fff6c8' });
+      fxAnims.push({ kind: 'namecall', x: m.you.x, y: m.you.y - 230, text: 'Đột phá · Luyện Khí tầng ' + m.you.level + '!', life: 2.4, maxLife: 2.4 });
+      for (let i = 0; i < 16; i++) particles.push({ x: m.you.x + (Math.random()-0.5)*80, y: m.you.y, vx: (Math.random()-0.5)*60, vy: -220 - Math.random()*160, ang: 0, life: 0.9, maxLife: 0.9, color: '#ffd94a', size: 9, dot: true, glow: true });
+      shake = Math.max(shake, 10); SFX.skill();
+      sysMsg('🎉 Đột phá Luyện Khí tầng ' + m.you.level + '!');
+    }
     players.set(m.you.name, Object.assign(players.get(m.you.name) || {}, m.you));
     UI.updateMe(m.you);
   } else if (m.t === 'fx') spawnFx(m);
@@ -179,7 +190,17 @@ function handle(m) {
   }
   else if (m.t === 'canhall') UI.openHall(m.halls);
   else if (m.t === 'healnum') { dmgNums.push({ x: m.x, y: m.y - 60, txt: m.txt, life: 1.2, color: '#7dff9a' }); SFX.loot(); }
-  else if (m.t === 'zonefx') zonesFx.push({ x: m.x, y: m.y, r: m.r, until: performance.now() + m.dur * 1000, vis: m.vis });
+  else if (m.t === 'zonefx') {
+    zonesFx.push({ x: m.x, y: m.y, r: m.r, until: performance.now() + m.dur * 1000, vis: m.vis });
+    // Đặt trận: tên chiêu bay + linh khí hội tụ + bát quái hiện ra
+    if (m.id && SKILL_NAMES[m.id]) fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 170, text: SKILL_NAMES[m.id], life: 1.5, maxLife: 1.5 });
+    fxAnims.push({ kind: 'bagua', x: m.x, y: m.y, r: m.r, life: 0.7, color: '#6adce8' });
+    for (let i = 0; i < 10; i++) {
+      const a = Math.random()*Math.PI*2, rr = m.r * (1.2 + Math.random()*0.6);
+      particles.push({ x: m.x + Math.cos(a)*rr, y: m.y + Math.sin(a)*rr*0.55, vx: -Math.cos(a)*rr*1.4, vy: -Math.sin(a)*rr*0.8, ang: 0, life: 0.6, maxLife: 0.6, color: '#a8f0ff', size: 9, dot: true });
+    }
+    if (m.id === 'khon-long-tran') fxAnims.push({ kind: 'chains', x: m.x, y: m.y, r: m.r, life: 1.4, color: '#ffd94a' });
+  }
   else if (m.t === 'gathered') { collected.add(m.id); SFX.loot(); }
   else if (m.t === 'channel') { channelDur = m.dur / 1000 || 3; channelUntil = m.dur > 0 ? performance.now() + m.dur : 0; }
   else if (m.t === 'burst') {
@@ -210,13 +231,18 @@ function danParticle(x, y, life, size) {
 }
 function spawnFx(m) {
   const now = performance.now();
+  const sid = m.id || '';
   // Kích hoạt animation đánh / vận công của người tung chiêu
   if (m.by) {
     if (m.kind === 'slash') atkAnim.set(m.by, now + 340);
-    else if (m.id) castAnim.set(m.by, now + 520);
+    else if (sid) castAnim.set(m.by, now + 520);
+  }
+  // Tên chiêu bay — phong cách truyện tu tiên
+  if (sid && SKILL_NAMES[sid] && m.kind !== 'hit' && m.kind !== 'slash') {
+    fxAnims.push({ kind: 'namecall', x: m.x, y: m.y - 190, text: SKILL_NAMES[sid], life: 1.5, maxLife: 1.5 });
   }
   // Chớp sáng ở vị trí người tung chiêu — báo hiệu rõ ràng mỗi lần dùng skill
-  if (m.id && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
+  if (sid && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
   if (m.kind === 'slash') {
     SFX.swing();
     for (let i = 0; i < 5; i++) swordParticle(m.x + (Math.random()-0.5)*50, m.y - 50 + (Math.random()-0.5)*50, m.dir + (Math.random()-0.5)*0.8, 460, 0.35, '#bfe9ff', 36);
@@ -228,13 +254,14 @@ function spawnFx(m) {
       fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.25, color: '#ffd94a' });
     } else {
       swordParticle(m.x, m.y - 50, m.dir, 1000, 0.7, '#9fdcff', 62);
+      for (let i = 0; i < 6; i++) particles.push({ x: m.x, y: m.y - 50, vx: Math.cos(m.dir) * (700 - i * 90), vy: Math.sin(m.dir) * (700 - i * 90), ang: 0, life: 0.3, maxLife: 0.3, color: 'rgba(159,220,255,.8)', size: 8, dot: true });
       fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.25, color: '#9fdcff' });
     }
   } else if (m.kind === 'aoe' || m.kind === 'rain') { // nổ vùng: kiếm / phù / trận / đan hỏa
     const vis = m.vis || 'sword';
     const n = m.kind === 'rain' ? 34 : 18;
     const col = vis === 'talisman' ? '#ff9d3d' : vis === 'formation' ? '#6adce8' : vis === 'danfire' ? '#3ddc74'
-      : (m.id === 'cuu-loi-kiem' ? '#c07dff' : '#ff7a3d');
+      : (sid === 'cuu-loi-kiem' ? '#c07dff' : '#ff7a3d');
     for (let i = 0; i < n; i++) {
       const a = Math.random()*Math.PI*2, rr = Math.random()*(m.r||120);
       const sx = m.x + Math.cos(a)*rr, sy = m.y + Math.sin(a)*rr - 300;
@@ -242,16 +269,44 @@ function spawnFx(m) {
       else if (vis === 'danfire') particles.push({ x: m.x + (Math.random()-0.5)*(m.r||120)*1.4, y: m.y - Math.random()*60, vx: (Math.random()-0.5)*120, vy: -60 - Math.random()*120, ang: 0, life: 0.7, maxLife: 0.7, color: Math.random()<0.5?'#7dff9a':'#3ddc74', size: 12, dot: true });
       else particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: col, size: 36, spin: 0, trail: true });
     }
+    if (sid === 'cuu-loi-kiem') { // Cửu Lôi: 5 luồng sét tím đánh xuống
+      for (let i = 0; i < 5; i++) fxAnims.push({ kind: 'bolt', x: m.x + (Math.random()-0.5)*(m.r||120)*1.6, y: m.y, life: 0.28, color: '#c07dff' });
+      SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 10);
+    }
+    if (sid === 'ngu-loi-phu') { // Ngũ Lôi Phù: 5 tia sét vàng đánh xuống
+      for (let i = 0; i < 5; i++) fxAnims.push({ kind: 'bolt', x: m.x + (Math.random()-0.5)*(m.r||140)*1.6, y: m.y, life: 0.3, color: '#ffe97a' });
+      SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 10);
+    }
+    if (sid === 'phan-thien-kiem') { // Phần Thiên: lửa bốc lên
+      for (let i = 0; i < 14; i++) particles.push({ x: m.x + (Math.random()-0.5)*(m.r||140)*1.5, y: m.y - 10, vx: (Math.random()-0.5)*60, vy: -180 - Math.random()*160, ang: 0, life: 0.8, maxLife: 0.8, color: ['#ff7a3d','#ff9d3d','#ffd94a'][i % 3], size: 14, dot: true });
+    }
+    if (sid === 'doc-dan-boc-phat') { // Độc Đan: mây độc tím xanh bốc lên
+      for (let i = 0; i < 16; i++) particles.push({ x: m.x + (Math.random()-0.5)*(m.r||140)*1.5, y: m.y - 10, vx: (Math.random()-0.5)*50, vy: -90 - Math.random()*90, ang: 0, life: 1.1, maxLife: 1.1, color: i % 2 ? '#9d4edd' : '#3ddc74', size: 16, dot: true });
+    }
     fxAnims.push({ kind: vis === 'formation' ? 'bagua' : 'ring', x: m.x, y: m.y, r: m.r || 120, life: 0.5, color: col });
     SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 7);
   } else if (m.kind === 'nova') {           // Vạn Kiếm / Cửu Cung Bát Quái: bung ra
     const vis = m.vis || 'sword';
     const col = vis === 'formation' ? '#6adce8' : '#8fd8ff';
-    for (let i = 0; i < 24; i++) {
-      const a = (i/24)*Math.PI*2;
-      swordParticle(m.x, m.y, a, 520, 0.55, col, 34);
+    if (sid === 'van-kiem-quy-tong') { // Vạn Kiếm: phi kiếm xếp thành kiếm trận xoay
+      for (let i = 0; i < 36; i++) {
+        const a = (i/36)*Math.PI*2, rr = m.r || 230;
+        particles.push({ x: m.x + Math.cos(a)*rr, y: m.y + Math.sin(a)*rr*0.55 - 40, vx: -Math.sin(a)*260, vy: Math.cos(a)*260*0.55, ang: a + Math.PI/2, life: 1.1, maxLife: 1.1, color: '#bfe9ff', size: 40, orbit: true });
+      }
+      fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: m.r || 230, life: 0.8, color: '#bfe9ff' });
+    } else if (sid === 'cuu-cung-bat-quai-tran') { // Cửu Cung: 8 cột sáng dựng lên
+      for (let i = 0; i < 8; i++) {
+        const a = (i/8)*Math.PI*2, rr = m.r || 280;
+        fxAnims.push({ kind: 'pillar', x: m.x + Math.cos(a)*rr*0.8, y: m.y + Math.sin(a)*rr*0.44, life: 0.9, maxLife: 0.9, color: '#6adce8' });
+      }
+      fxAnims.push({ kind: 'bagua', x: m.x, y: m.y, r: m.r || 280, life: 0.9, color: '#6adce8' });
+    } else {
+      for (let i = 0; i < 24; i++) {
+        const a = (i/24)*Math.PI*2;
+        swordParticle(m.x, m.y, a, 520, 0.55, col, 34);
+      }
+      fxAnims.push({ kind: vis === 'formation' ? 'bagua' : 'ring', x: m.x, y: m.y, r: m.r, life: 0.6, color: col });
     }
-    fxAnims.push({ kind: vis === 'formation' ? 'bagua' : 'ring', x: m.x, y: m.y, r: m.r, life: 0.6, color: col });
     SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 9);
   } else if (m.kind === 'line') {           // Khai Thiên: cự kiếm chém dọc đường thẳng
     const n = 9;
@@ -259,13 +314,22 @@ function spawnFx(m) {
       const d = (m.len/n)*i;
       swordParticle(m.x + Math.cos(m.dir)*d, m.y + Math.sin(m.dir)*d - 30, m.dir, 60, 0.6, '#ffe9a8', 52);
     }
-    fxAnims.push({ kind: 'beam', x: m.x, y: m.y, dir: m.dir, len: m.len, w: m.w, life: 0.5, color: '#ffe9a8' });
-    SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 12);
+    fxAnims.push({ kind: 'beam', x: m.x, y: m.y, dir: m.dir, len: m.len, w: (m.w || 130) * 1.6, life: 0.6, color: '#ffe9a8' });
+    fxAnims.push({ kind: 'flash', x: m.x + Math.cos(m.dir)*m.len/2, y: m.y + Math.sin(m.dir)*m.len/2 - 30, r: 130, life: 0.35, color: '#ffffff' });
+    SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 14);
   } else if (m.kind === 'shield') {         // Kim Chung / Thanh Tâm Đan
-    const col = (m.vis || 'sword') === 'danfire' ? '#7dff9a' : '#ffd97a';
-    fxAnims.push({ kind: 'shield', x: m.x, y: m.y, life: m.dur, color: col });
+    const vis2 = m.vis || 'sword';
+    const col2 = vis2 === 'danfire' ? '#7dff9a' : '#ffd97a';
+    fxAnims.push({ kind: vis2 === 'danfire' ? 'danring' : 'bell', x: m.x, y: m.y, life: m.dur, color: col2 });
   } else if (m.kind === 'heal') {
     for (let i = 0; i < 12; i++) danParticle(m.x, m.y, 0.9, 10);
+    if (sid === 'cuu-chuyen-kim-dan') { // Cửu Chuyển Kim Đan: kim đan vàng khổng lồ
+      fxAnims.push({ kind: 'pill', x: m.x, y: m.y - 90, life: 1.6, color: '#ffd94a' });
+      fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: 130, life: 0.8, color: '#ffd94a' });
+      SFX.skill();
+    } else {
+      fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: 90, life: 0.5, color: '#7dff9a' });
+    }
   } else if (m.kind === 'hit') {
     fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 20, r: 26, life: 0.15, color: '#ff5a5a' });
     // Tìm con quái gần nhất đang đánh -> cho nó ra đòn thế đánh
@@ -363,6 +427,21 @@ function loop(t) {
   // Map theo map hiện tại
   const mapImg = myMap === 'yeu-thu' ? IMG.map_yeuthu : IMG.map;
   if (mapImg) ctx.drawImage(mapImg, 0, 0, WORLD_W, WORLD_H);
+
+  // Ambient tông môn: đom đóm + lá rơi — không khí tiên hiệp (chỉ Thanh Huyền Tông)
+  if (myMap === 'tong-mon') {
+    if (!window._ambT) window._ambT = 0;
+    window._ambT -= dt;
+    if (window._ambT <= 0) {
+      window._ambT = 0.25 + Math.random() * 0.3;
+      const ax = camX + (Math.random()-0.5) * cv.width / ZOOM, ay = camY + (Math.random()-0.5) * cv.height / ZOOM;
+      if (Math.random() < 0.55) { // đom đóm bay lượn
+        particles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*50, vy: (Math.random()-0.5)*40, ang: 0, life: 3.2, maxLife: 3.2, color: '#d8ff9a', size: 7, dot: true, glow: true, ambient: true });
+      } else { // lá rơi
+        particles.push({ x: ax, y: ay - 200, vx: (Math.random()-0.5)*30, vy: 45 + Math.random()*35, ang: Math.random()*6, life: 4.5, maxLife: 4.5, color: Math.random() < 0.5 ? '#7dc46a' : '#a8c46a', size: 10, leaf: true, ambient: true, spin: (Math.random()-0.5)*4 });
+      }
+    }
+  }
 
   // Gom entity trong tầm nhìn, XẾP THEO Y (đứng dưới vẽ sau = đè lên đúng như game thường)
   const shadow = (x, y, rx) => { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y + 3, rx, rx * 0.32, 0, 0, Math.PI*2); ctx.fill(); };
@@ -498,15 +577,32 @@ function loop(t) {
   // Hiệu ứng phi kiếm
   for (const pt of particles) {
     pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt;
-    const a = Math.max(0, pt.life / pt.maxLife);
+    if (pt.leaf) pt.x += Math.sin((pt.maxLife - pt.life) * 5) * 34 * dt; // lá rơi lượn qua lại
+    if (pt.glow) pt.vx += Math.sin((pt.maxLife - pt.life) * 3 + pt.x * 0.01) * 26 * dt; // đom đóm bay lượn
+    let a = Math.max(0, pt.life / pt.maxLife);
+    if (pt.glow) a *= 0.55 + 0.45 * Math.sin((pt.maxLife - pt.life) * 9); // đom đóm nhấp nháy
+    if (pt.ambient && pt.life < 1) a *= pt.life; // ambient mờ dần khi hết
+    a = Math.max(0, Math.min(1, a));
     ctx.save(); ctx.globalAlpha = a; ctx.translate(pt.x, pt.y); ctx.rotate(pt.ang);
-    if (pt.dot) { ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(0, 0, pt.size/2, 0, Math.PI*2); ctx.fill(); }
-    else if (pt.tali) { // phù vàng xoay bay
+    if (pt.dot) {
+      if (pt.leaf) { // lá rơi xoay
+        ctx.rotate((pt.spin || 2) * (pt.maxLife - pt.life));
+        ctx.fillStyle = pt.color;
+        ctx.beginPath(); ctx.ellipse(0, 0, pt.size/2, pt.size/3.4, 0, 0, Math.PI*2); ctx.fill();
+      } else {
+        if (pt.glow) { ctx.shadowColor = pt.color; ctx.shadowBlur = 14; }
+        ctx.fillStyle = pt.color; ctx.beginPath(); ctx.arc(0, 0, pt.size/2, 0, Math.PI*2); ctx.fill();
+      }
+    }
+    else if (pt.tali) { // phù vàng xoay bay, có chữ triện
       ctx.rotate(Math.sin(pt.life * 22) * 0.6);
       ctx.fillStyle = pt.color; ctx.shadowColor = '#ff9d3d'; ctx.shadowBlur = 10;
       const s = pt.size;
       ctx.fillRect(-s/2, -s/3, s, s*2/3);
-      ctx.fillStyle = '#c0392b'; ctx.fillRect(-s/7, -s/4, s*2/7, s/2); // ấn đỏ giữa phù
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#c0392b'; ctx.font = `bold ${Math.round(s*0.55)}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('符', 0, 2);
+      ctx.textBaseline = 'alphabetic';
       ctx.strokeStyle = '#8a6d1c'; ctx.lineWidth = 2; ctx.strokeRect(-s/2, -s/3, s, s*2/3);
     }
     else {
@@ -555,6 +651,85 @@ function loop(t) {
       ctx.beginPath(); ctx.arc(f.x, f.y, 10 + pr * 36, 0, Math.PI*2); ctx.stroke();
       ctx.globalAlpha *= 0.5;
       ctx.beginPath(); ctx.arc(f.x, f.y, 4, 0, Math.PI*2); ctx.fillStyle = '#ffe9a8'; ctx.fill();
+    } else if (f.kind === 'namecall') { // tên chiêu bay — chữ vàng kim phong cách truyện tu tiên
+      const pr = 1 - f.life / f.maxLife; // 0 -> 1
+      const scale = pr < 0.15 ? 0.6 + pr / 0.15 * 0.5 : 1.1 - Math.min(0.1, (pr - 0.15) * 0.2);
+      ctx.translate(f.x, f.y - pr * 46);
+      ctx.scale(scale, scale);
+      ctx.font = 'bold 30px serif'; ctx.textAlign = 'center';
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(60,20,0,.9)';
+      ctx.strokeText(f.text, 0, 0);
+      const g = ctx.createLinearGradient(0, -26, 0, 6);
+      g.addColorStop(0, '#fff6c8'); g.addColorStop(0.5, '#ffd94a'); g.addColorStop(1, '#e8930c');
+      ctx.fillStyle = g; ctx.shadowColor = '#ffb400'; ctx.shadowBlur = 18;
+      ctx.fillText(f.text, 0, 0);
+    } else if (f.kind === 'bolt') { // tia sét đánh từ trời xuống
+      const segs = 7, pts = [];
+      for (let i = 0; i <= segs; i++) pts.push([f.x + (Math.random()-0.5)*46*(i/segs), f.y - 420 + (420/segs)*i]);
+      ctx.strokeStyle = f.color; ctx.lineWidth = 5; ctx.shadowColor = f.color; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i <= segs; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff';
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i <= segs; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+      ctx.fillStyle = f.color; ctx.shadowBlur = 26;
+      ctx.beginPath(); ctx.arc(f.x, f.y - 8, 26 * a + 8, 0, Math.PI*2); ctx.fill();
+    } else if (f.kind === 'bell') { // Hỗn Độn Kim Chung: chuông vàng xoay
+      const wob = Math.sin(walkT * 7) * 0.08;
+      ctx.translate(f.x, f.y - 52); ctx.rotate(wob);
+      ctx.strokeStyle = f.color; ctx.lineWidth = 3.5; ctx.shadowColor = f.color; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.arc(0, -6, 34, Math.PI, 0); ctx.stroke(); // vòm chuông
+      ctx.beginPath(); ctx.moveTo(-34, -6); ctx.lineTo(-40, 26); ctx.moveTo(34, -6); ctx.lineTo(40, 26); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 28, 42, 10, 0, 0, Math.PI*2); ctx.stroke(); // miệng chuông
+      ctx.beginPath(); ctx.arc(0, -44, 6, 0, Math.PI*2); ctx.stroke(); // núm chuông
+      ctx.globalAlpha *= 0.14; ctx.fillStyle = f.color;
+      ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI*2); ctx.fill();
+    } else if (f.kind === 'danring') { // Thanh Tâm Đan: vòng đan hỏa xanh xoay
+      for (let i = 0; i < 10; i++) {
+        const fa = walkT * 3 + (i/10)*Math.PI*2;
+        const fx2 = Math.cos(fa)*44, fy2 = Math.sin(fa)*44;
+        ctx.fillStyle = i % 2 ? '#7dff9a' : '#3ddc74'; ctx.shadowColor = '#3ddc74'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(f.x + fx2, f.y - 52 + fy2*0.6, 7, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(125,255,154,.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y - 52, 44, 27, 0, 0, Math.PI*2); ctx.stroke();
+    } else if (f.kind === 'pill') { // Cửu Chuyển Kim Đan: kim đan vàng khổng lồ
+      const pr = 1 - f.life / 1.6;
+      const r = 26 + Math.sin(Math.min(1, pr*3)*Math.PI) * 10;
+      ctx.translate(f.x, f.y);
+      const g = ctx.createRadialGradient(0, 0, 4, 0, 0, r + 26);
+      g.addColorStop(0, '#fffbd0'); g.addColorStop(0.45, '#ffd94a'); g.addColorStop(1, 'rgba(255,157,61,0)');
+      ctx.fillStyle = g; ctx.shadowColor = '#ffb400'; ctx.shadowBlur = 34;
+      ctx.beginPath(); ctx.arc(0, 0, r + 26, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff6c8';
+      ctx.beginPath(); ctx.arc(-r*0.3, -r*0.35, r*0.28, 0, Math.PI*2); ctx.fill(); // bóng sáng
+      for (let i = 0; i < 8; i++) { // 8 tia sáng xoay
+        const ra = walkT*2 + (i/8)*Math.PI*2;
+        ctx.strokeStyle = 'rgba(255,217,74,.85)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(Math.cos(ra)*(r+30), Math.sin(ra)*(r+30));
+        ctx.lineTo(Math.cos(ra)*(r+52), Math.sin(ra)*(r+52)); ctx.stroke();
+      }
+    } else if (f.kind === 'chains') { // Khốn Long Trận: vòng xích vàng siết lại
+      const pr = 1 - f.life / 1.4;
+      const rr = f.r * (1.15 - pr*0.25);
+      ctx.strokeStyle = f.color; ctx.lineWidth = 5; ctx.shadowColor = f.color; ctx.shadowBlur = 12;
+      for (let i = 0; i < 14; i++) {
+        const ca = (i/14)*Math.PI*2 + walkT*1.2;
+        const cx = f.x + Math.cos(ca)*rr, cy = f.y + Math.sin(ca)*rr*0.55;
+        ctx.beginPath(); ctx.ellipse(cx, cy, 10, 6, ca, 0, Math.PI*2); ctx.stroke();
+      }
+    } else if (f.kind === 'pillar') { // Cửu Cung: cột sáng dựng lên
+      const pmax = f.maxLife || 0.9;
+      const pr = 1 - f.life / pmax;
+      const h = 340 * Math.min(1, pr*4);
+      const g = ctx.createLinearGradient(0, f.y, 0, f.y - h);
+      g.addColorStop(0, f.color); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.shadowColor = f.color; ctx.shadowBlur = 24;
+      ctx.fillRect(f.x - 14, f.y - h, 28, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(f.x - 5, f.y - h, 10, h);
     }
     ctx.restore();
   }
