@@ -166,22 +166,31 @@ function renderChar() {
 function renderBag() {
   const me = G().players.get(G().myName); if (!me) return;
   const bag = me.bag || [];
+  const icons = {'vu-khi':'🗡️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
+  const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
+  const colors = {thuong:'#8a8a8a',tot:'#2ecc71',hiem:'#3498db','cuc-pham':'#9b59b6'};
+  const bgColors = {thuong:'rgba(138,138,138,.12)',tot:'rgba(46,204,113,.12)',hiem:'rgba(52,152,219,.12)','cuc-pham':'rgba(155,89,182,.15)'};
+  const rarNames = {thuong:'Thường',tot:'Tốt',hiem:'Hiếm','cuc-pham':'Cực Phẩm'};
   let gearHtml = '';
   for (const g of bag) {
-    const rn = ({thuong:['⚪','#c0c0c0'],tot:['🟢','#5f5'],hiem:['🔵','#5af'],'cuc-pham':['🟣','#c5f']})[g.rarity] || ['⚪','#c0c0c0'];
-    const slotName = ({'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'})[g.slot] || g.slot;
-    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'Máu':k==='mp'?'Mana':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
-    gearHtml += `<div class="bag-item"><div class="ic">${rn[0]}</div>
-      <div class="nm" style="color:${rn[1]}">${slotName}<small>${statTxt}</small></div>
-      <button data-equip="${g.id}">Mặc</button></div>`;
+    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
+    gearHtml += `<div class="bag-gear" data-equip="${g.id}" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}">
+      <div class="gear-icon">${icons[g.slot] || '📦'}</div>
+      <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}</div>
+      <div class="gear-slotname">${slotNames[g.slot] || g.slot}</div>
+      <div class="gear-stats">${statTxt}</div>
+      <div class="gear-act">Bấm để mặc</div></div>`;
   }
   document.getElementById('bag-body').innerHTML = `
-    <div class="bag-item"><div class="ic">🧪</div>
-      <div class="nm">Hồi Khí Đan<small>Hồi 40% khí huyết · còn <b>${me.potions}</b> viên</small></div>
-      <button data-drink>Dùng</button></div>
-    <div class="bag-item"><div class="ic">💎</div>
-      <div class="nm">Linh thạch<small>${fmt(me.lt)} viên — dùng để mua đồ, cường hóa</small></div></div>
-    ${gearHtml || '<div style="color:#66708c;font-size:12px;margin-top:6px">Chưa có trang bị — đi đánh quái để rớt đồ.</div>'}`;
+    <div class="bag-top">
+      <div class="bag-item"><div class="ic">🧪</div>
+        <div class="nm">Hồi Khí Đan<small>Còn <b>${me.potions}</b> viên</small></div>
+        <button data-drink>Dùng</button></div>
+      <div class="bag-item"><div class="ic">💎</div>
+        <div class="nm">Linh thạch<small>${fmt(me.lt)} viên</small></div></div>
+    </div>
+    <div class="char-section">🎒 Trang bị trong túi (${bag.length})</div>
+    ${gearHtml ? `<div class="bag-grid">${gearHtml}</div>` : '<div class="bag-empty">Chưa có trang bị — đi đánh quái để rớt đồ.</div>'}`;
   document.querySelector('#bag-body [data-drink]').onclick = () => { G().send({ t: 'potion' }); setTimeout(renderBag, 300); };
   document.querySelectorAll('#bag-body [data-equip]').forEach(b => b.onclick = () => {
     G().send({ t: 'equip', id: b.dataset.equip }); setTimeout(() => { renderBag(); renderChar(); }, 300);
