@@ -23,6 +23,7 @@ const MAPS = {
   'yeu-thu':  { name: 'Yêu Thú Sơn Mạch' },
   'hac-phong': { name: 'Hắc Phong Lĩnh' },
   'thi-luyen': { name: 'Thí Luyện Trường' },
+  'loi-kiep': { name: 'Lôi Kiếp Đài' },
 };
 const PORTALS = [
   { id: 'to-yeuthu',  from: 'tong-mon', x: 1920, y: 2620, to: 'yeu-thu',  tx: 1920, ty: 2380, label: 'Yêu Thú Sơn Mạch' },
@@ -31,8 +32,10 @@ const PORTALS = [
   { id: 'to-yeuthu2', from: 'hac-phong', x: 400, y: 2400, to: 'yeu-thu', tx: 3400, ty: 400, label: 'Yêu Thú Sơn Mạch' },
   { id: 'to-thiluyen', from: 'tong-mon', x: 3400, y: 1400, to: 'thi-luyen', tx: 1920, ty: 2500, label: 'Thí Luyện Trường', needLv: 7 },
   { id: 'to-tongmon2', from: 'thi-luyen', x: 1920, y: 2620, to: 'tong-mon', tx: 3400, ty: 1400, label: 'Thanh Huyền Tông' },
+  { id: 'to-loikiep', from: 'tong-mon', x: 400, y: 1400, to: 'loi-kiep', tx: 1920, ty: 2500, label: 'Lôi Kiếp Đài' },
+  { id: 'to-tongmon3', from: 'loi-kiep', x: 1920, y: 2620, to: 'tong-mon', tx: 400, ty: 1400, label: 'Thanh Huyền Tông' },
 ];
-const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 } };
+const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 }, 'loi-kiep': { x: 1920, y: 2500 } };
 // Vật cản lớn mỗi map (x, y, r) — quái né khi di chuyển (hồ nước, đá lớn, cây đổ)
 const OBSTACLES = {
   'yeu-thu': [
@@ -274,7 +277,12 @@ const INTERACTS = [
   }
 }
 
-const tvNeed = lvl => Math.round(100 * Math.pow(1.4, lvl - 1)); // Luyện Khí 1-9 (P1)
+const tvNeed = lvl => {
+  // Kiểu MU: cấp đầu lên nhanh, cấp cao chậm dần
+  const fast = { 1: 40, 2: 70, 3: 120, 4: 180 };
+  if (fast[lvl]) return fast[lvl];
+  return Math.round(220 * Math.pow(1.45, lvl - 5)); // từ cấp 5 trở đi
+};
 
 // ---------- HTTP static ----------
 const MIME = { '.html':'text/html', '.css':'text/css', '.js':'application/javascript', '.json':'application/json', '.webp':'image/webp', '.png':'image/png', '.jpg':'image/jpeg' };
@@ -820,6 +828,7 @@ function canTribulate(p) {
 }
 function startTribulation(p) {
   if (!canTribulate(p)) { sendTo(p, { t: 'err', text: 'Chưa đủ điều kiện độ kiếp!' }); return; }
+  if (p.map !== 'loi-kiep') { sendTo(p, { t: 'err', text: 'Phải đến Lôi Kiếp Đài (cổng tây tông môn) mới độ kiếp được!' }); return; }
   if (p.tribulation) { sendTo(p, { t: 'err', text: 'Đang độ kiếp!' }); return; }
   p.tribulation = { wave: 0, nextWave: Date.now() + 2000, strikes: [] };
   p.tv = 0; // tiêu hao tu vi để dẫn kiếp

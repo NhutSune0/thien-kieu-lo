@@ -134,7 +134,7 @@ function renderChar() {
     <div class="row"><span>Điểm cống hiến</span><b>🏵️ ${fmt(me.dch || 0)}</b></div>
     <div class="row"><span>Danh hiệu</span><b>${(me.titles && me.titles.length) ? me.titles.join(' · ') : '—'}</b></div>
     <div class="row"><span>Kết bái</span><b>${me.ketbai ? '🤝 Trương Tiểu Hổ' : 'Chưa có'}</b></div>
-    ${me.level >= 9 && !me.trucCo ? `<div class="row"><span>Độ Kiếp</span><button data-trib style="padding:6px 16px;background:linear-gradient(180deg,#9fd8ff,#4a7ac9);border:none;border-radius:6px;font-weight:bold;cursor:pointer">⚡ Độ Kiếp (9 đợt lôi)</button></div>` : ''}
+    ${me.level >= 9 && !me.trucCo ? `<div class="row"><span>Độ Kiếp</span><button data-trib style="padding:6px 16px;background:linear-gradient(180deg,#9fd8ff,#4a7ac9);border:none;border-radius:6px;font-weight:bold;cursor:pointer">⚡ Độ Kiếp (đến Lôi Kiếp Đài)</button></div>` : ''}
     ${me.trucCo ? '<div class="row"><span>Cảnh giới</span><b style="color:#c5f">🌟 Trúc Cơ kỳ</b></div>' : ''}`;
   document.querySelectorAll('#char-body [data-unequip]').forEach(el => el.onclick = () => {
     G().send({ t: 'unequip', slot: el.dataset.unequip }); setTimeout(renderChar, 300);

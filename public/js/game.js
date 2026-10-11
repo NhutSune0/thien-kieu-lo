@@ -523,6 +523,19 @@ function loop(t) {
   if (myMap === 'thi-luyen') { // Thí Luyện Trường: sàn đấu
     ctx.fillStyle = 'rgba(60,40,20,0.25)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
   }
+  if (myMap === 'loi-kiep') { // Lôi Kiếp Đài: mây đen, sét nền
+    ctx.fillStyle = 'rgba(15,15,45,0.5)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+    // Đài tròn giữa map
+    ctx.strokeStyle = '#6adce8'; ctx.lineWidth = 5; ctx.shadowColor = '#6adce8'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.ellipse(1920, 1440, 220, 120, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(1920, 1440, 140, 76, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Tia sét ngẫu nhiên nền
+    if (Math.random() < 0.06) {
+      const sx = vx0 + Math.random() * (vx1 - vx0);
+      fxAnims.push({ kind: 'lightning', x: sx, y: 600 + Math.random()*800, life: 0.3, maxLife: 0.3 });
+    }
+  }
 
   // Hoa dại tĩnh theo map (seeded — vị trí cố định mỗi lần vào)
   if (!window._flowers || window._flowers.map !== myMap) {
