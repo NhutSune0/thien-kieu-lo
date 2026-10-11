@@ -43,19 +43,22 @@ function buildSkills() {
 function iconFile(id) {
   return (G().ICONS || {})[id]; // P3: icon theo Đường (server gửi trong welcome/hallskills)
 }
-function trySkill(id) {
-  const sk = G().SKILLS[id]; if (!sk) return;
-  if (G().setAuto) G().setAuto(false); // bấm skill tay thì tắt Auto
+function trySkill(id, isAuto) {
+  const sk = G().SKILLS[id]; if (!sk) return false;
+  if (!isAuto && G().setAuto) G().setAuto(false); // bấm skill tay thì tắt Auto
   const now = Date.now();
-  if (cds[id] && cds[id] > now) return;
+  if (cds[id] && cds[id] > now) return false;
   const me = G().players.get(G().myName);
   if (me && me.mp < sk.mp) {
-    const el = document.querySelector(`.skill[data-id="${id}"]`);
-    el.classList.remove('nomp'); void el.offsetWidth; el.classList.add('nomp');
-    return;
+    if (!isAuto) {
+      const el = document.querySelector(`.skill[data-id="${id}"]`);
+      el.classList.remove('nomp'); void el.offsetWidth; el.classList.add('nomp');
+    }
+    return false;
   }
   cds[id] = now + sk.cd * 1000;
   G().send({ t: 'skill', id });
+  return true;
 }
 function tickCds() {
   const now = Date.now();
@@ -104,45 +107,54 @@ function renderGearSlots(me) {
   const slots = ['vu-khi','ao','quan','giay','nhan','day-chuyen'];
   const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
   const icons = {'vu-khi':'🗡️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
-  const colors = {thuong:'#c0c0c0',tot:'#5f5',hiem:'#5af','cuc-pham':'#c5f'};
+  const colors = {thuong:'#8a8a8a',tot:'#2ecc71',hiem:'#3498db','cuc-pham':'#9b59b6'};
+  const bgColors = {thuong:'rgba(138,138,138,.12)',tot:'rgba(46,204,113,.12)',hiem:'rgba(52,152,219,.12)','cuc-pham':'rgba(155,89,182,.15)'};
   const rarNames = {thuong:'Thường',tot:'Tốt',hiem:'Hiếm','cuc-pham':'Cực Phẩm'};
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + slots.map(s => {
+  return '<div class="gear-grid">' + slots.map(s => {
     const g = (me.gear || {})[s];
-    if (!g) return `<div style="border:1px dashed #3a4a7a;border-radius:6px;padding:6px;text-align:center;opacity:.4">
-      <div style="font-size:22px">${icons[s]}</div><div style="font-size:10px;color:#66708c">${slotNames[s]}</div></div>`;
-    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'Máu':k==='mp'?'Mana':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
-    return `<div data-unequip="${s}" style="border:2px solid ${colors[g.rarity]};border-radius:6px;padding:6px;text-align:center;cursor:pointer;background:rgba(0,0,0,.3)" title="Bấm để tháo">
-      <div style="font-size:22px">${icons[s]}</div>
-      <div style="font-size:10px;color:${colors[g.rarity]};font-weight:bold">${rarNames[g.rarity]}</div>
-      <div style="font-size:9px;color:#9fb0d8">${statTxt}</div></div>`;
-  }).join('') + '</div><div style="font-size:10px;color:#66708c;margin-top:4px">Bấm vào đồ để tháo ra</div>';
+    if (!g) return `<div class="gear-slot empty">
+      <div class="gear-icon">${icons[s]}</div><div class="gear-slotname">${slotNames[s]}</div></div>`;
+    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
+    return `<div class="gear-slot" data-unequip="${s}" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}" title="Bấm để tháo">
+      <div class="gear-icon">${icons[s]}</div>
+      <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}</div>
+      <div class="gear-stats">${statTxt}</div></div>`;
+  }).join('') + '</div>';
 }
 function renderChar() {
   const me = G().players.get(G().myName); if (!me) return;
-  const realm = REALMS[Math.min(8, Math.floor((me.level - 1) / 10))] || 'Luyện Khí';
-  const rankName = (G().RANKS || {})[me.rank] || 'Tạp Vụ';
-  const hallName = (G().HALL_NAMES || {})[me.hall] || 'Chưa chọn';
+  const hallName = (G().HALL_NAMES || {})[me.hall] || '';
   const hallIcon = (G().HALL_ICONS_UI || {})[me.hall] || '';
+  const classIcon = me.hall === 'kiem-cac' ? '🗡️' : me.hall === 'than-phu' ? '🧧' : me.hall === 'tran-su' ? '☯️' : '⚔️';
+  const className = me.hall === 'kiem-cac' ? 'Kiếm Tu' : me.hall === 'than-phu' ? 'Phù Tu' : me.hall === 'tran-su' ? 'Trận Sư' : '';
+  const avatarBg = me.gender === 'nu' ? 'linear-gradient(135deg,#ff9ff3,#f368e0)' : 'linear-gradient(135deg,#48dbfb,#0abde3)';
   document.getElementById('char-body').innerHTML = `
-    <div class="row"><span>Đạo hiệu</span><b style="color:#7dff9a">${me.name}</b></div>
-    <div class="row"><span>Giới tính</span><b>${me.gender === 'nu' ? '👸 Nữ' : '🤴 Nam'}</b></div>
-    <div class="row"><span>Tông môn</span><b>Thanh Huyền Tông</b></div>
-    <div class="row"><span>Bậc</span><b style="color:#9fd8ff">${rankName}</b></div>
-    <div class="row"><span>Đường</span><b>${me.hallChosen ? hallIcon + ' ' + hallName : 'Chưa chọn'}</b></div>
-    <div class="row"><span>Cảnh giới</span><b>${realm} ${me.level}</b></div>
-    <div class="row"><span>Khí huyết</span><b>${Math.ceil(me.hp)} / ${me.maxhp}</b></div>
-    <div class="row"><span>Linh lực</span><b>${Math.ceil(me.mp)} / ${me.maxmp}</b></div>
-    <div class="row"><span>Công kích</span><b>⚔️ ${me.atk || 24}</b></div>
-    <div class="row"><span>Phòng ngự</span><b>🛡️ ${me.def || 8}</b></div>
-    <div class="row"><span>Bạo kích</span><b>💥 ${me.crit || 15}%</b></div>
-    <div class="row"><span>Trang bị</span><b>${renderGearSlots(me)}</b></div>
-    <div class="row"><span>Tu vi</span><b>${fmt(me.tv)} / ${fmt(me.tvNeed)}</b></div>
-    <div class="row"><span>Linh thạch</span><b>💎 ${fmt(me.lt)}</b></div>
-    <div class="row"><span>Điểm cống hiến</span><b>🏵️ ${fmt(me.dch || 0)}</b></div>
-    <div class="row"><span>Danh hiệu</span><b>${(me.titles && me.titles.length) ? me.titles.join(' · ') : '—'}</b></div>
-    <div class="row"><span>Kết bái</span><b>${me.ketbai ? '🤝 Trương Tiểu Hổ' : 'Chưa có'}</b></div>
-    ${me.level >= 9 && !me.trucCo ? `<div class="row"><span>Độ Kiếp</span><button data-trib style="padding:6px 16px;background:linear-gradient(180deg,#9fd8ff,#4a7ac9);border:none;border-radius:6px;font-weight:bold;cursor:pointer">⚡ Độ Kiếp (đến Lôi Kiếp Đài)</button></div>` : ''}
-    ${me.trucCo ? '<div class="row"><span>Cảnh giới</span><b style="color:#c5f">🌟 Trúc Cơ kỳ</b></div>' : ''}`;
+  <div class="char-top">
+    <div class="char-avatar" style="background:${avatarBg}">${me.gender === 'nu' ? '👸' : '🤴'}</div>
+    <div class="char-info">
+      <div class="char-name">${me.name}</div>
+      <div class="char-class">${classIcon} ${className} ${me.trucCo ? '· <span style="color:#c5f">Trúc Cơ</span>' : ''}</div>
+      <div class="char-lv">Cấp ${me.level}</div>
+    </div>
+  </div>
+  <div class="char-section">⚔️ Chỉ số chiến đấu</div>
+  <div class="stat-grid">
+    <div class="stat"><span>Công kích</span><b>${me.atk || 0}</b></div>
+    <div class="stat"><span>Phòng ngự</span><b>${me.def || 0}</b></div>
+    <div class="stat"><span>Khí huyết</span><b>${Math.ceil(me.hp)}/${me.maxhp}</b></div>
+    <div class="stat"><span>Linh lực</span><b>${Math.ceil(me.mp)}/${me.maxmp}</b></div>
+    <div class="stat"><span>Bạo kích</span><b>${me.crit || 15}%</b></div>
+    <div class="stat"><span>Tu vi</span><b>${fmt(me.tv)}/${fmt(me.tvNeed)}</b></div>
+  </div>
+  <div class="char-section">🛡️ Trang bị đang mặc</div>
+  ${renderGearSlots(me)}
+  <div class="char-section">💰 Tài sản</div>
+  <div class="stat-grid">
+    <div class="stat"><span>Linh thạch</span><b>💎 ${fmt(me.lt)}</b></div>
+    <div class="stat"><span>Hồi Khí Đan</span><b>🧪 ${me.potions}</b></div>
+  </div>
+  ${(me.titles && me.titles.length) ? `<div class="char-section">🏵️ Danh hiệu</div><div style="color:#ffd94a;font-size:13px">${me.titles.join(' · ')}</div>` : ''}
+  ${me.level >= 9 && !me.trucCo ? `<button data-trib class="trib-btn">⚡ Độ Kiếp (đến Lôi Kiếp Đài)</button>` : ''}`;
   document.querySelectorAll('#char-body [data-unequip]').forEach(el => el.onclick = () => {
     G().send({ t: 'unequip', slot: el.dataset.unequip }); setTimeout(renderChar, 300);
   });

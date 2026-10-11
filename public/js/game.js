@@ -1297,8 +1297,33 @@ setInterval(() => { // vòng auto 400ms
   if (!best && myMap !== 'yeu-thu') { goToMap('yeu-thu'); return; }
   if (!best) return; // thật sự hết quái, đứng chờ respawn
   if (bd > 110) send({ t: 'move', x: Math.round(best.x), y: Math.round(best.y) });
-  else send({ t: 'attack' });
+  else {
+    // Auto skill: dùng skill khi có, ưu tiên AoE khi đông quái
+    if (!autoSkill(me, best)) send({ t: 'attack' });
+  }
 }, 400);
+
+// Auto dùng kỹ năng — trả về true nếu đã dùng skill
+function autoSkill(me, target) {
+  const SKILLS = window.__game.SKILLS || {}, ORDER = window.__game.ORDER || [];
+  // Đếm quái xung quanh để chọn AoE hay đơn
+  let nearCount = 0;
+  for (const m of monsters.values()) {
+    if (Math.hypot(m.x - me.x, m.y - me.y) < 250) nearCount++;
+  }
+  const isBoss = target.type === 'thiet-bi-da-tru' || target.type === 'hac-phong-lao-yeu';
+  for (const id of ORDER) {
+    const sk = SKILLS[id]; if (!sk) continue;
+    // Logic chọn skill
+    if (sk.kind === 'heal' && me.hp > me.maxhp * 0.6) continue; // chỉ heal khi máu <60%
+    if (sk.kind === 'buff' && me.hp > me.maxhp * 0.8) continue;
+    if ((sk.kind === 'aoe' || sk.kind === 'nova' || sk.kind === 'rain') && nearCount < 2 && !isBoss) continue;
+    if (sk.cd >= 60 && !isBoss && target.hp > target.maxhp * 0.5) continue; // ultimate để dành
+    // Dùng skill qua UI (tự set cooldown hiển thị)
+    if (UI.trySkill(id, true)) return true;
+  }
+  return false;
+}
 
 // ---------- Khởi động ----------
 // Chọn giới tính
