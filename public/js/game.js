@@ -470,17 +470,57 @@ function loop(t) {
   const mapImg = myMap === 'yeu-thu' ? IMG.map_yeuthu : IMG.map;
   if (mapImg) ctx.drawImage(mapImg, 0, 0, WORLD_W, WORLD_H);
 
-  // Ambient tông môn: đom đóm + lá rơi — không khí tiên hiệp (chỉ Thanh Huyền Tông)
-  if (myMap === 'tong-mon') {
-    if (!window._ambT) window._ambT = 0;
-    window._ambT -= dt;
-    if (window._ambT <= 0) {
-      window._ambT = 0.25 + Math.random() * 0.3;
-      const ax = camX + (Math.random()-0.5) * cv.width / ZOOM, ay = camY + (Math.random()-0.5) * cv.height / ZOOM;
-      if (Math.random() < 0.55) { // đom đóm bay lượn
+  // Hoa dại tĩnh theo map (seeded — vị trí cố định mỗi lần vào)
+  if (!window._flowers || window._flowers.map !== myMap) {
+    let seed = myMap === 'yeu-thu' ? 12345 : 67890;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const cols = myMap === 'yeu-thu'
+      ? ['#ff8ab3','#ffd94a','#ffffff','#c49aff','#ff6a6a']
+      : ['#ffb3d9','#ffffff','#ffd94a','#ff9ec6'];
+    const fl = [];
+    for (let i = 0; i < 70; i++) {
+      fl.push({ x: rnd() * WORLD_W, y: rnd() * WORLD_H, c: cols[(rnd() * cols.length) | 0], s: 5 + rnd() * 4, ph: rnd() * 6.28 });
+    }
+    window._flowers = { map: myMap, list: fl };
+  }
+  const tNow = performance.now() / 1000;
+  for (const f of window._flowers.list) {
+    if (!inView(f.x, f.y)) continue;
+    const sway = Math.sin(tNow * 1.8 + f.ph) * 2;
+    ctx.fillStyle = '#3f7a3a'; ctx.fillRect(f.x - 1, f.y, 2, 7); // thân
+    ctx.fillStyle = f.c;
+    const s = f.s;
+    ctx.fillRect(f.x - s/2 + sway, f.y - s/2, s, s); // bông
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    ctx.fillRect(f.x - 1 + sway, f.y - 1, 2, 2); // nhụy
+  }
+
+  // Ambient theo map — không khí tiên hiệp
+  if (!window._ambT) window._ambT = 0;
+  window._ambT -= dt;
+  if (window._ambT <= 0) {
+    window._ambT = 0.22 + Math.random() * 0.3;
+    const ax = camX + (Math.random()-0.5) * cv.width / ZOOM, ay = camY + (Math.random()-0.5) * cv.height / ZOOM;
+    const r = Math.random();
+    if (myMap === 'tong-mon') {
+      if (r < 0.4) { // đom đóm bay lượn
         particles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*50, vy: (Math.random()-0.5)*40, ang: 0, life: 3.2, maxLife: 3.2, color: '#d8ff9a', size: 7, dot: true, glow: true, ambient: true });
-      } else { // lá rơi
+      } else if (r < 0.7) { // lá rơi
         particles.push({ x: ax, y: ay - 200, vx: (Math.random()-0.5)*30, vy: 45 + Math.random()*35, ang: Math.random()*6, life: 4.5, maxLife: 4.5, color: Math.random() < 0.5 ? '#7dc46a' : '#a8c46a', size: 10, leaf: true, ambient: true, spin: (Math.random()-0.5)*4 });
+      } else if (r < 0.85) { // cánh hoa sen rơi (gần hồ)
+        particles.push({ x: ax, y: ay - 160, vx: (Math.random()-0.5)*25, vy: 35 + Math.random()*25, ang: Math.random()*6, life: 5, maxLife: 5, color: Math.random() < 0.5 ? '#ffb3d9' : '#ffe0ee', size: 9, leaf: true, ambient: true, spin: (Math.random()-0.5)*5 });
+      } else { // bướm lượn
+        particles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*70, vy: (Math.random()-0.5)*50, ang: 0, life: 4, maxLife: 4, color: ['#ffd94a','#ff9ec6','#c49aff'][ (Math.random()*3)|0 ], size: 11, butterfly: true, ambient: true, ph: Math.random()*6.28 });
+      }
+    } else { // yeu-thu: rừng sâu — đom đóm + bướm + bào tử + lá
+      if (r < 0.35) { // đom đóm rừng
+        particles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*60, vy: (Math.random()-0.5)*45, ang: 0, life: 3.5, maxLife: 3.5, color: Math.random() < 0.5 ? '#d8ff9a' : '#a8fff4', size: 7, dot: true, glow: true, ambient: true });
+      } else if (r < 0.55) { // bướm rừng
+        particles.push({ x: ax, y: ay, vx: (Math.random()-0.5)*80, vy: (Math.random()-0.5)*55, ang: 0, life: 4.5, maxLife: 4.5, color: ['#ff9ec6','#ffd94a','#9adcff','#c49aff'][ (Math.random()*4)|0 ], size: 12, butterfly: true, ambient: true, ph: Math.random()*6.28 });
+      } else if (r < 0.75) { // bào tử phát sáng bay lên
+        particles.push({ x: ax, y: ay + 60, vx: (Math.random()-0.5)*20, vy: -25 - Math.random()*25, ang: 0, life: 4, maxLife: 4, color: '#e8ffb0', size: 5, dot: true, glow: true, ambient: true });
+      } else { // lá rừng rơi
+        particles.push({ x: ax, y: ay - 200, vx: (Math.random()-0.5)*35, vy: 50 + Math.random()*40, ang: Math.random()*6, life: 4.5, maxLife: 4.5, color: ['#5da24e','#7dc46a','#a8c46a'][ (Math.random()*3)|0 ], size: 10, leaf: true, ambient: true, spin: (Math.random()-0.5)*4 });
       }
     }
   }
@@ -634,6 +674,11 @@ function loop(t) {
   for (const pt of particles) {
     pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt;
     if (pt.leaf) pt.x += Math.sin((pt.maxLife - pt.life) * 5) * 34 * dt; // lá rơi lượn qua lại
+    if (pt.butterfly) { // bướm lượn vòng
+      const wt = (pt.maxLife - pt.life) * 2.2 + (pt.ph || 0);
+      pt.vx += Math.cos(wt) * 90 * dt; pt.vy += Math.sin(wt * 1.3) * 70 * dt;
+      pt.vx *= (1 - 1.6 * dt); pt.vy *= (1 - 1.6 * dt); // hãm để không bay quá nhanh
+    }
     if (pt.glow) pt.vx += Math.sin((pt.maxLife - pt.life) * 3 + pt.x * 0.01) * 26 * dt; // đom đóm bay lượn
     let a = Math.max(0, pt.life / pt.maxLife);
     if (pt.glow) a *= 0.55 + 0.45 * Math.sin((pt.maxLife - pt.life) * 9); // đom đóm nhấp nháy
@@ -641,7 +686,15 @@ function loop(t) {
     a = Math.max(0, Math.min(1, a));
     ctx.save(); ctx.globalAlpha = a; ctx.translate(pt.x, pt.y); ctx.rotate(pt.ang);
     if (pt.dot) {
-      if (pt.leaf) { // lá rơi xoay
+      if (pt.butterfly) { // bướm vỗ cánh
+        const flap = Math.abs(Math.sin((pt.maxLife - pt.life) * 14 + (pt.ph || 0)));
+        ctx.fillStyle = pt.color;
+        ctx.save(); ctx.scale(0.35 + flap * 0.65, 1);
+        ctx.beginPath(); ctx.ellipse(-pt.size/3, 0, pt.size/2.4, pt.size/3.2, -0.4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(pt.size/3, 0, pt.size/2.4, pt.size/3.2, 0.4, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-1, -pt.size/3, 2, pt.size*2/3); // thân
+      } else if (pt.leaf) { // lá rơi xoay
         ctx.rotate((pt.spin || 2) * (pt.maxLife - pt.life));
         ctx.fillStyle = pt.color;
         ctx.beginPath(); ctx.ellipse(0, 0, pt.size/2, pt.size/3.4, 0, 0, Math.PI*2); ctx.fill();
