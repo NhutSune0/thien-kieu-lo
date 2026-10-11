@@ -733,6 +733,19 @@ function defaultLines(npcId) {
 }
 function handleTalk(p, npcId) {
   const npc = NPCS[npcId]; if (!npc) return;
+  // Hoàn thành mục tiêu nói chuyện (nếu đang làm NV talk với NPC này)
+  const a = p.quests && p.quests.active;
+  if (a) {
+    const q = QUESTS[a.id];
+    const o = q && q.objectives[a.step];
+    if (o && o.type === 'talk' && o.npc === npcId) {
+      advanceStep(p);
+      // Nếu hết objectives thì báo về trả NV
+      if (a.step >= q.objectives.length) {
+        // lines sẽ được set bên dưới thành q.done
+      }
+    }
+  }
   let lines = ['Muốn đi đâu? Ta đưa ngươi đi ngay.'];
   // Dialog riêng cho từng NPC
   const dialogs = {
@@ -765,16 +778,16 @@ function handleTalk(p, npcId) {
   if (dialogs[npcId]) lines = dialogs[npcId];
   // Kiểm tra nhiệm vụ có thể nhận/trả
   const nid = acceptAvailQuest(p);
-  const a = p.quests.active;
+  const aq = p.quests.active;
   let canAccept = false, canTurnin = false, qid = null;
   if (nid && QUESTS[nid].giver === npcId) {
     canAccept = true; qid = nid;
     lines = QUESTS[nid].offer;
   }
-  if (a && QUESTS[a.id]) {
-    const q = QUESTS[a.id];
-    if (a.step >= q.objectives.length && q.turnin === npcId) {
-      canTurnin = true; qid = a.id;
+  if (aq && QUESTS[aq.id]) {
+    const q = QUESTS[aq.id];
+    if (aq.step >= q.objectives.length && q.turnin === npcId) {
+      canTurnin = true; qid = aq.id;
       lines = q.done;
     }
   }
