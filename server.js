@@ -258,12 +258,14 @@ const effCrit = p => 15 + (gearStats(p).crit || 0); // % bạo kích (cơ bản 
 
 // ---------- Quái (P1: 3 loại vòng ngoài) ----------
 const MONSTERS = {
-  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 25, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 1900, y1: 2880 }, lv: '1-3' },
-  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 18, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 950, y1: 1900 }, lv: '3-5' },
-  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 12, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 0, y1: 950 }, lv: '5-7' },
+  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 40, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 1900, y1: 2880 }, lv: '1-3' },
+  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 30, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 950, y1: 1900 }, lv: '3-5' },
+  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 20, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 0, y1: 950 }, lv: '5-7' },
   // Hắc Phong Lĩnh: quái mạnh hơn
-  'am-anh-thu':   { hp: 200, dmg: 24, tv: 150, ltMin: 6, ltMax: 12, speed: 170, aggro: 300, count: 12, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '7-9' },
-  'hac-phong-bao':{ hp: 320, dmg: 32, tv: 220, ltMin: 10, ltMax: 18, speed: 180, aggro: 340, count: 15, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '9-12' },
+  'am-anh-thu':   { hp: 200, dmg: 24, tv: 150, ltMin: 6, ltMax: 12, speed: 170, aggro: 300, count: 20, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '7-9' },
+  'hac-phong-bao':{ hp: 320, dmg: 32, tv: 220, ltMin: 10, ltMax: 18, speed: 180, aggro: 340, count: 25, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '9-12' },
+  // Quái độ kiếp: chỉ spawn khi độ kiếp ở Lôi Kiếp Đài
+  'loi-kiep-thu':  { hp: 500, dmg: 40, tv: 0, ltMin: 20, ltMax: 40, speed: 190, aggro: 9999, count: 0, map: 'loi-kiep', lv: '9' },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
@@ -885,69 +887,73 @@ function startTribulation(p) {
   if (!canTribulate(p)) { sendTo(p, { t: 'err', text: 'Chưa đủ điều kiện độ kiếp!' }); return; }
   if (p.map !== 'loi-kiep') { sendTo(p, { t: 'err', text: 'Phải đến Lôi Kiếp Đài (cổng tây tông môn) mới độ kiếp được!' }); return; }
   if (p.tribulation) { sendTo(p, { t: 'err', text: 'Đang độ kiếp!' }); return; }
-  p.tribulation = { wave: 0, nextWave: Date.now() + 2000, strikes: [] };
+  p.tribulation = { wave: 0, mobIds: [] };
   p.tv = 0; // tiêu hao tu vi để dẫn kiếp
-  broadcast({ t: 'sys', text: `⚡ ${p.name} bắt đầu độ Cửu Cửu Lôi Kiếp!` });
+  broadcast({ t: 'sys', text: `⚡ ${p.name} bắt đầu độ Cửu Cửu Lôi Kiếp! Đánh bại 9 đợt Lôi Kiếp Thú!` });
   broadcastMap(p.map, { t: 'tribstart', name: p.name });
   sendTo(p, { t: 'me', you: pubPlayer(p) });
+  // Spawn đợt 1 ngay
+  spawnTribWave(p);
+}
+function spawnTribWave(p) {
+  const tr = p.tribulation; if (!tr) return;
+  tr.wave++;
+  // Đợt càng cao càng nhiều quái và mạnh hơn
+  const count = Math.min(1 + Math.floor(tr.wave / 3), 3); // đợt 1-2: 1 con, 3-5: 2 con, 6-9: 3 con
+  tr.mobIds = [];
+  for (let i = 0; i < count; i++) {
+    const m = spawnMonster('loi-kiep-thu', 'loi-kiep', false,
+      p.x + (Math.random()-0.5)*400, p.y + (Math.random()-0.5)*400);
+    // Tăng máu/dame theo đợt
+    const mul = 1 + (tr.wave - 1) * 0.25;
+    m.hp = m.maxhp = Math.round(m.cfg.hp * mul);
+    m.dmg = Math.round(m.cfg.dmg * mul);
+    m.tribOwner = p.name; // đánh dấu quái của ai
+    tr.mobIds.push(m.id);
+  }
+  broadcastMap(p.map, { t: 'tribwave', name: p.name, wave: tr.wave, count });
+  sendTo(p, { t: 'sys', text: `⚡ Đợt ${tr.wave}/9: ${count} Lôi Kiếp Thú xuất hiện!` });
 }
 function updateTribulation(p, now) {
   const tr = p.tribulation; if (!tr) return;
-  // Mỗi đợt cách nhau 4s, tổng 9 đợt
-  if (tr.wave < 9 && now >= tr.nextWave) {
-    tr.wave++;
-    tr.nextWave = now + 4000;
-    // Sét đánh vào vị trí hiện tại của người chơi + ngẫu nhiên xung quanh
-    const strikes = [];
-    for (let i = 0; i < tr.wave; i++) { // đợt càng cao càng nhiều sét
-      strikes.push({
-        x: Math.round(p.x + (Math.random()-0.5) * 300),
-        y: Math.round(p.y + (Math.random()-0.5) * 300),
-        at: now + 1000, // 1s cảnh báo trước
-        dmg: Math.round(p.maxhp * (0.15 + tr.wave * 0.03)), // đợt 9: 42% máu
-      });
-    }
-    tr.strikes.push(...strikes);
-    broadcastMap(p.map, { t: 'tribwave', name: p.name, wave: tr.wave, strikes: strikes.map(s => ({ x: s.x, y: s.y })) });
-  }
-  // Xử lý sét đánh
-  for (let i = tr.strikes.length - 1; i >= 0; i--) {
-    const s = tr.strikes[i];
-    if (now >= s.at) {
-      tr.strikes.splice(i, 1);
-      broadcastMap(p.map, { t: 'tribstrike', x: s.x, y: s.y });
-      // Nếu người chơi trong vòng 80px -> trúng đòn
-      if (!p.dead && Math.hypot(p.x - s.x, p.y - s.y) < 80) {
-        p.hp -= s.dmg;
-        sendTo(p, { t: 'tribhit', dmg: s.dmg });
-        if (p.hp <= 0) {
-          p.hp = 0; p.dead = true; p.respawnAt = now + 5000;
-          p.tribulation = null; // thất bại
-          broadcast({ t: 'sys', text: `💀 ${p.name} độ kiếp thất bại!` });
-          broadcastMap(p.map, { t: 'tribend', name: p.name, success: false });
-          sendTo(p, { t: 'me', you: pubPlayer(p) });
-          return;
-        }
-        sendTo(p, { t: 'me', you: pubPlayer(p) });
+  // Kiểm tra quái đợt hiện tại còn sống không
+  const alive = tr.mobIds.filter(id => { const m = monsters.get(id); return m && !m.dead; });
+  if (alive.length === 0) {
+    if (tr.wave >= 9) {
+      // Hoàn thành 9 đợt -> đột phá
+      tribulationSuccess(p);
+    } else {
+      // Spawn đợt tiếp theo sau 2s
+      if (!tr.nextWaveAt) tr.nextWaveAt = now + 2000;
+      if (now >= tr.nextWaveAt) {
+        tr.nextWaveAt = null;
+        spawnTribWave(p);
       }
     }
   }
-  // Hoàn thành 9 đợt
-  if (tr.wave >= 9 && tr.strikes.length === 0 && now >= tr.nextWave) {
+  // Nếu người chơi chết -> thất bại
+  if (p.dead) {
+    // Xóa quái độ kiếp của người này
+    for (const id of tr.mobIds) monsters.delete(id);
     p.tribulation = null;
-    p.trucCo = true; p.level = 10; // Trúc Cơ kỳ
-    // Thưởng đột phá mạnh: gấp 3 lần trước
-    p.maxhp += 600; p.hp = p.maxhp; p.maxmp += 250; p.mp = p.maxmp;
-    p.atk += 100; p.def += 50;
-    p.titles = p.titles || []; p.titles.push('Trúc Cơ Chân Nhân');
-    broadcast({ t: 'sys', text: `🌟 ${p.name} độ kiếp thành công! Đột phá Trúc Cơ kỳ! (+600 HP, +100 Công, mở kỹ năng Trúc Cơ)` });
-    broadcastMap(p.map, { t: 'tribend', name: p.name, success: true });
-    // Mở skill Trúc Cơ cho class
-    sendTo(p, { t: 'hallskills', skills: getSkills(p), order: getOrder(p), icons: hallData(p.hall).icons, names: hallData(p.hall).names });
-    sendTo(p, { t: 'sys', text: `✨ Đã mở khóa kỹ năng Trúc Cơ!` });
-    sendTo(p, { t: 'me', you: pubPlayer(p) });
-    savePlayer(p);
+    broadcast({ t: 'sys', text: `💀 ${p.name} độ kiếp thất bại!` });
+    broadcastMap(p.map, { t: 'tribend', name: p.name, success: false });
   }
+}
+function tribulationSuccess(p) {
+  p.tribulation = null;
+  p.trucCo = true; p.level = 10; // Trúc Cơ kỳ
+  // Thưởng đột phá mạnh: gấp 3 lần trước
+  p.maxhp += 600; p.hp = p.maxhp; p.maxmp += 250; p.mp = p.maxmp;
+  p.atk += 100; p.def += 50;
+  p.titles = p.titles || []; p.titles.push('Trúc Cơ Chân Nhân');
+  broadcast({ t: 'sys', text: `🌟 ${p.name} độ kiếp thành công! Đột phá Trúc Cơ kỳ! (+600 HP, +100 Công, mở kỹ năng Trúc Cơ)` });
+  broadcastMap(p.map, { t: 'tribend', name: p.name, success: true });
+  // Mở skill Trúc Cơ cho class
+  sendTo(p, { t: 'hallskills', skills: getSkills(p), order: getOrder(p), icons: hallData(p.hall).icons, names: hallData(p.hall).names });
+  sendTo(p, { t: 'sys', text: `✨ Đã mở khóa kỹ năng Trúc Cơ!` });
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  savePlayer(p);
 }
 
 function gainTv(p, amount) {
