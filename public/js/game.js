@@ -155,10 +155,12 @@ function handle(m) {
     UI.updateMe(m.you);
   } else if (m.t === 'fx') spawnFx(m);
   else if (m.t === 'dmg') {
-    dmgNums.push({ x: 0, y: 0, mid: m.mid, txt: '-' + m.dmg, life: 1, color: '#ffdf6b' });
+    const crit = !!m.crit;
+    dmgNums.push({ x: 0, y: 0, mid: m.mid, txt: (crit ? '💥' : '-') + m.dmg, life: crit ? 1.3 : 1, color: crit ? '#ffe94a' : '#ffdf6b', crit });
     const now = performance.now();
-    hitFlash.set(m.mid, now + 150); hitPop.set(m.mid, now + 240); // chớp trắng + nảy lên khi trúng đòn
-    hitStop = Math.max(hitStop, 0.07); // khựng 70ms cho có lực
+    hitFlash.set(m.mid, now + (crit ? 220 : 150)); hitPop.set(m.mid, now + (crit ? 340 : 240)); // crit nảy mạnh hơn
+    hitStop = Math.max(hitStop, crit ? 0.12 : 0.07); // crit khựng lâu hơn
+    if (crit && UI.settings.shake) shake = Math.max(shake, 6);
     SFX.hit();
   }
   else if (m.t === 'mdie') {
@@ -174,6 +176,14 @@ function handle(m) {
           life: 0.8, maxLife: 0.8, color: ['#ff5a5a','#ffb060','#ffffff','#c9a06a'][i % 4], size: 7 + Math.random()*9, chunk: true });
       }
       if (mb.type === 'thiet-bi-da-tru') { shake = Math.max(shake, 14); hitStop = Math.max(hitStop, 0.22); }
+      // KPAH: đồng linh thạch văng ra rồi bay về phía người chơi (visual, loot thật server đã cộng)
+      const me = players.get(myName);
+      for (let i = 0; i < 5; i++) {
+        const a = Math.random()*Math.PI*2, sp = 80 + Math.random()*160;
+        particles.push({ x: mx, y: my - 30, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 220,
+          life: 0.9, maxLife: 0.9, color: '#ffd94a', size: 6, coin: true,
+          tx: me ? me.rx : mx, ty: me ? me.ry - 30 : my });
+      }
     }
     monsters.delete(m.mid);
     SFX.die();
@@ -708,6 +718,19 @@ function loop(t) {
       pt.vx *= (1 - 1.6 * dt); pt.vy *= (1 - 1.6 * dt); // hãm để không bay quá nhanh
     }
     if (pt.glow) pt.vx += Math.sin((pt.maxLife - pt.life) * 3 + pt.x * 0.01) * 26 * dt; // đom đóm bay lượn
+    if (pt.coin) { // đồng linh thạch: văng lên rồi hút về người chơi
+      const age = pt.maxLife - pt.life;
+      pt.vy += 900 * dt; // trọng lực
+      if (age > 0.35) { // sau 0.35s bắt đầu hút về
+        const me2 = players.get(myName);
+        if (me2) { pt.tx = me2.rx; pt.ty = me2.ry - 30; }
+        const dx = pt.tx - pt.x, dy = pt.ty - pt.y, d = Math.hypot(dx, dy) || 1;
+        const pull = 1400 * dt;
+        pt.vx += dx / d * pull; pt.vy += dy / d * pull;
+        pt.vx *= (1 - 2.5 * dt); pt.vy *= (1 - 2.5 * dt);
+        if (d < 24) pt.life = 0; // chạm người chơi -> biến mất
+      }
+    }
     let a = Math.max(0, pt.life / pt.maxLife);
     if (pt.glow) a *= 0.55 + 0.45 * Math.sin((pt.maxLife - pt.life) * 9); // đom đóm nhấp nháy
     if (pt.ambient && pt.life < 1) a *= pt.life; // ambient mờ dần khi hết
@@ -722,6 +745,11 @@ function loop(t) {
         ctx.beginPath(); ctx.ellipse(pt.size/3, 0, pt.size/2.4, pt.size/3.2, 0.4, 0, Math.PI*2); ctx.fill();
         ctx.restore();
         ctx.fillStyle = '#3a2a1a'; ctx.fillRect(-1, -pt.size/3, 2, pt.size*2/3); // thân
+      } else if (pt.coin) { // đồng linh thạch tròn vàng
+        ctx.fillStyle = '#ffd94a';
+        ctx.beginPath(); ctx.arc(0, 0, pt.size/2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#b8860b';
+        ctx.beginPath(); ctx.arc(0, 0, pt.size/4, 0, Math.PI*2); ctx.fill();
       } else if (pt.leaf) { // lá rơi xoay
         ctx.rotate((pt.spin || 2) * (pt.maxLife - pt.life));
         ctx.fillStyle = pt.color;
@@ -924,13 +952,16 @@ function loop(t) {
   }
 
   // Số sát thương
-  ctx.textAlign = 'center'; ctx.font = 'bold 15px sans-serif';
+  ctx.textAlign = 'center';
   for (const d of dmgNums) {
     d.life -= dt * 1.2;
     const m = monsters.get(d.mid);
     const x = m && m.rx !== undefined ? m.rx : d.x, y = (m && m.ry !== undefined ? m.ry : d.y) - 70 - (1 - d.life) * 40;
+    ctx.font = d.crit ? 'bold 22px sans-serif' : 'bold 15px sans-serif'; // crit to hơn
     ctx.globalAlpha = Math.max(0, d.life);
-    ctx.fillStyle = d.color; ctx.fillText(d.txt, x, y);
+    ctx.fillStyle = d.color;
+    if (d.crit) { ctx.strokeStyle = '#7a3b00'; ctx.lineWidth = 3; ctx.strokeText(d.txt, x, y); } // viền cho nổi
+    ctx.fillText(d.txt, x, y);
     ctx.globalAlpha = 1;
   }
   dmgNums = dmgNums.filter(d => d.life > 0);

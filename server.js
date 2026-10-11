@@ -252,17 +252,19 @@ function savePlayer(p) {
   try { fs.writeFileSync(path.join(SAVE_DIR, p.name + '.json'), JSON.stringify(p)); } catch(e) {}
 }
 
-function spawnMonster(type, map, initial) {
+let grpSeq = 1; // id bầy quái
+function spawnMonster(type, map, initial, gx, gy, grp) {
   const cfg = MONSTERS[type];
   map = map || 'yeu-thu';
   const anchor = MAP_ANCHOR[map] || SPAWN;
   const m = {
     id: midSeq++, type, cfg, map,
-    x: 200 + Math.random() * (WORLD_W - 400),
-    y: 200 + Math.random() * (WORLD_H - 400),
+    x: gx !== undefined ? gx + (Math.random()-0.5)*220 : 200 + Math.random() * (WORLD_W - 400),
+    y: gy !== undefined ? gy + (Math.random()-0.5)*220 : 200 + Math.random() * (WORLD_H - 400),
     hp: cfg.hp, maxhp: cfg.hp,
     state: 'idle', wx: 0, wy: 0, wt: 0, target: null, atkAt: 0, dead: false, respawnAt: 0,
     stunUntil: 0, slowUntil: 0, slowMul: 1, poisonUntil: 0, poisonMul: 0, poisonBy: null, poisonTick: 0, // P3: choáng/chậm/độc
+    grp: grp || 0, // bầy quái — cùng bầy thì cùng aggro
   };
   if (!initial) { m.x = anchor.x + (Math.random()-0.5)*1600; m.y = anchor.y + (Math.random()-0.5)*1200; }
   // Đẩy quái ra khỏi vùng an toàn quanh điểm đáp của map
@@ -273,8 +275,26 @@ function spawnMonster(type, map, initial) {
   monsters.set(m.id, m);
   return m;
 }
-// Spawn ban đầu: 25 quái trên map Yêu Thú Sơn Mạch
-for (const [t, c] of Object.entries(MONSTERS)) for (let i = 0; i < c.count; i++) spawnMonster(t, 'yeu-thu', true);
+// Spawn ban đầu: quái theo bầy 3-5 con trên map Yêu Thú Sơn Mạch
+for (const [t, c] of Object.entries(MONSTERS)) {
+  let left = c.count;
+  while (left > 0) {
+    const grpSize = Math.min(left, 3 + Math.floor(Math.random() * 3)); // 3-5 con/bầy
+    const grp = grpSeq++;
+    const gx = 200 + Math.random() * (WORLD_W - 400), gy = 200 + Math.random() * (WORLD_H - 400);
+    for (let i = 0; i < grpSize; i++) spawnMonster(t, 'yeu-thu', true, gx, gy, grp);
+    left -= grpSize;
+  }
+}
+// Quái hồi sinh: về gần bầy cũ nếu còn
+function alertGroup(m, target) {
+  if (!m.grp) return;
+  for (const o of monsters.values()) {
+    if (o.dead || o.id === m.id || o.grp !== m.grp || o.map !== m.map) continue;
+    if (Math.hypot(o.x - m.x, o.y - m.y) > 500) continue;
+    if (o.state !== 'chase') { o.state = 'chase'; o.target = target; }
+  }
+}
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -605,10 +625,10 @@ function nearestMonsters(x, y, range, n, map) {
     .slice(0, n);
 }
 
-function damageMonster(m, dmg, p) {
+function damageMonster(m, dmg, p, crit) {
   if (m.dead) return;
   m.hp -= dmg;
-  m.target = p; m.state = 'chase';
+  m.target = p; m.state = 'chase'; alertGroup(m, p); // bị đánh -> cả bầy bu lại
   // Bộc phát Hỗn Độn Linh Căn: lần đầu máu boss <30% -> đánh 400 + hất văng
   if (m.boss && !m.bursted && p && m.hp < m.maxhp * 0.3) {
     m.bursted = true;
@@ -619,7 +639,7 @@ function damageMonster(m, dmg, p) {
     broadcastMap(m.map, { t: 'burst', x: Math.round(p.x), y: Math.round(p.y), by: p.name });
     broadcast({ t: 'sys', text: `⚡ Hỗn Độn Linh Căn của ${p.name} bộc phát!` });
   }
-  broadcastMap(m.map, { t: 'dmg', mid: m.id, dmg: Math.round(dmg), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp });
+  broadcastMap(m.map, { t: 'dmg', mid: m.id, dmg: Math.round(dmg), hp: Math.max(0, Math.ceil(m.hp)), maxhp: m.maxhp, crit: crit || undefined });
   if (m.hp <= 0) killMonster(m, p);
 }
 
@@ -664,12 +684,15 @@ function gainTv(p, amount) {
 
 function basicAttack(p) {
   const now = Date.now();
-  if (now - p.lastAtk < 600) return; // 0.6s/đòn
+  if (now - p.lastAtk < 350) return; // KPAH: đánh nhanh 0.35s/đòn
   p.lastAtk = now;
   const targets = nearestMonsters(p.x, p.y, 90, 1, p.map);
   p.dir = targets.length ? Math.atan2(targets[0].y - p.y, targets[0].x - p.x) : p.dir;
-  broadcastMap(p.map, { t: 'fx', kind: 'slash', vis: 'sword', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name });
-  if (targets.length) damageMonster(targets[0], effAtk(p), p);
+  // Crit: 15% tỉ lệ, 1.8x sát thương
+  const isCrit = Math.random() < 0.15;
+  const dmg = effAtk(p) * (isCrit ? 1.8 : 1);
+  broadcastMap(p.map, { t: 'fx', kind: 'slash', vis: 'sword', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name, crit: isCrit || undefined });
+  if (targets.length) damageMonster(targets[0], dmg, p, isCrit);
 }
 
 function castSkill(p, id) {
@@ -839,7 +862,16 @@ setInterval(() => {
           const need = [...players.values()].some(pl => pl.quests && pl.quests.active && pl.quests.active.id === 'C1-06');
           if (need) spawnBoss(SPAWN.x + 300, SPAWN.y + 200, null);
           monsters.delete(m.id);
-        } else { const nm = spawnMonster(m.type, m.map); monsters.delete(m.id); }
+        } else {
+          // Hồi sinh gần bầy cũ (cùng loại, còn sống) để giữ bầy
+          let gx, gy, grp = 0;
+          for (const o of monsters.values()) {
+            if (o.dead || o.type !== m.type || o.map !== m.map || !o.grp) continue;
+            gx = o.x; gy = o.y; grp = o.grp; break;
+          }
+          const nm = spawnMonster(m.type, m.map, false, gx, gy, grp);
+          monsters.delete(m.id);
+        }
       }
       continue;
     }
@@ -872,7 +904,7 @@ setInterval(() => {
         if (Math.hypot(p.x - anchor.x, p.y - anchor.y) < SAFE_R) continue; // vùng an toàn: không chủ động đánh
         const dd = dist(m, p); if (dd < bd) { bd = dd; best = p; }
       }
-      if (best) { m.state = 'chase'; m.target = best; }
+      if (best) { m.state = 'chase'; m.target = best; alertGroup(m, best); }
     } else if (m.state === 'chase') {
       const t = m.target;
       if (!t || t.dead || dist(m, t) > m.cfg.aggro * 1.6) { m.state = 'idle'; m.target = null; continue; }
