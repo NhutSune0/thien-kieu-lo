@@ -495,6 +495,34 @@ function loop(t) {
     ctx.fillRect(f.x - 1 + sway, f.y - 1, 2, 2); // nhụy
   }
 
+  // Bụi cỏ tĩnh theo map (seeded — vị trí cố định, đung đưa theo gió giống hoa)
+  if (!window._grass || window._grass.map !== myMap) {
+    let seed = myMap === 'yeu-thu' ? 24680 : 13579;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const cols = myMap === 'yeu-thu'
+      ? ['#3e8a3a','#4da24a','#2f7433','#5cab55']
+      : ['#4da24a','#5cab55','#6fbf66','#3e8a3a'];
+    const gr = [];
+    for (let i = 0; i < 140; i++) {
+      const blades = 3 + ((rnd() * 3) | 0);
+      const offs = [];
+      for (let b = 0; b < blades; b++) offs.push({ dx: (rnd()-0.5)*10, h: 8 + rnd()*10, lean: (rnd()-0.5)*6, c: cols[(rnd()*cols.length)|0] });
+      gr.push({ x: rnd() * WORLD_W, y: rnd() * WORLD_H, offs, ph: rnd() * 6.28 });
+    }
+    window._grass = { map: myMap, list: gr };
+  }
+  for (const g of window._grass.list) {
+    if (!inView(g.x, g.y)) continue;
+    const sway = Math.sin(tNow * 1.6 + g.ph) * 2.5;
+    for (const b of g.offs) {
+      ctx.strokeStyle = b.c; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(g.x + b.dx, g.y);
+      ctx.quadraticCurveTo(g.x + b.dx + b.lean*0.5, g.y - b.h*0.6, g.x + b.dx + b.lean + sway, g.y - b.h);
+      ctx.stroke();
+    }
+  }
+
   // Ambient theo map — không khí tiên hiệp
   if (!window._ambT) window._ambT = 0;
   window._ambT -= dt;

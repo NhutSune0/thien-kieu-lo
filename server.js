@@ -142,9 +142,9 @@ const effAtk = p => p.atk * (Date.now() < (p.atkBuffUntil || 0) ? (p.atkBuffMul 
 
 // ---------- Quái (P1: 3 loại vòng ngoài) ----------
 const MONSTERS = {
-  'hac-mao-thu':  { hp: 45,  dmg: 7,  tv: 18, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 12 },
-  'thanh-truc-xa':{ hp: 95,  dmg: 13, tv: 38, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 8 },
-  'da-hoa-lang':  { hp: 190, dmg: 24, tv: 85, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 5 },
+  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 25 },
+  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 18 },
+  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 12 },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
@@ -624,14 +624,20 @@ function damageMonster(m, dmg, p) {
 }
 
 function killMonster(m, p) {
-  m.dead = true; m.respawnAt = Date.now() + (m.boss ? 60000 : 20000);
+  m.dead = true; m.respawnAt = Date.now() + (m.boss ? 45000 : 12000);
   const ltGain = m.cfg.ltMin + Math.floor(Math.random() * (m.cfg.ltMax - m.cfg.ltMin + 1));
   if (p && !p.dead) {
     p.lt += ltGain;
     gainTv(p, m.cfg.tv);
+    // Điểm cống hiến từ săn quái — cày chay cũng lên được Ngoại Môn, không bị ép làm NV
+    let dchGain = 0;
+    if (m.boss) dchGain = 10;
+    else if (m.type === 'da-hoa-lang') dchGain = 1;
+    else if (Math.random() < 0.2) dchGain = 1;
+    if (dchGain > 0) { p.dch = (p.dch || 0) + dchGain; }
     // 15% rơi Hồi Khí Đan
     if (Math.random() < 0.15) { p.potions++; sendTo(p, { t: 'loot', text: '+1 Hồi Khí Đan' }); }
-    sendTo(p, { t: 'loot', text: `+${ltGain} linh thạch · +${m.cfg.tv} tu vi` });
+    sendTo(p, { t: 'loot', text: `+${ltGain} linh thạch · +${m.cfg.tv} tu vi` + (dchGain > 0 ? ` · +${dchGain} ĐCH` : '') });
   }
   // NV giết quái: mọi player đang làm NV đúng loại quái đều được +1
   for (const pl of players.values()) {
