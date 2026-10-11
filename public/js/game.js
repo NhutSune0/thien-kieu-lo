@@ -85,6 +85,7 @@ const ASSETS = [
   ['map', 'assets/map-quang-truong.webp'],
   ['map_yeuthu', 'assets/map-rung-yeu-thu.webp'],
   ['walk', 'assets/nvc-walk.webp'], ['attack', 'assets/nvc-attack.webp'], ['cast', 'assets/nvc-cast.webp'],
+  ['walk_nu', 'assets/nvc-nu-walk.webp'], ['attack_nu', 'assets/nvc-nu-attack.webp'], ['cast_nu', 'assets/nvc-nu-cast.webp'],
   ['m_hac', 'assets/mob-hac-mao-thu.webp'], ['m_xa', 'assets/mob-thanh-truc-xa.webp'], ['m_lang', 'assets/mob-da-hoa-lang.webp'],
   ['npc_ly', 'assets/npc-chap-su-ly.webp'], ['npc_tran', 'assets/npc-lao-tran.webp'],
   ['npc_duoc', 'assets/npc-duoc-tran-tu.webp'], ['npc_ho', 'assets/npc-tieu-ho.webp'],
@@ -729,21 +730,21 @@ function loop(t) {
       const now = performance.now();
       shadow(p.rx, p.ry, 26);
       const isFemale = p.gender === 'nu';
-      if (isFemale) {
-        // Nữ: hồng đậm rõ rệt
-        ctx.filter = 'hue-rotate(150deg) saturate(1.8) brightness(1.1)';
-      }
+      // Dùng sprite nữ riêng (không cần filter đổi màu nữa)
+      const walkImg = isFemale ? IMG.walk_nu : IMG.walk;
+      const atkImg = isFemale ? IMG.attack_nu : IMG.attack;
+      const castImg = isFemale ? IMG.cast_nu : IMG.cast;
       const aEnd = atkAnim.get(p.name) || 0, cEnd = castAnim.get(p.name) || 0;
       if (cEnd > now) {            // vận công tung skill
         const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 100));
-        drawSheet(IMG.cast, p.rx, p.ry, dirRow(p.dir), fr, 4, 4, 0.3);
+        drawSheet(castImg, p.rx, p.ry, dirRow(p.dir), fr, 4, 4, 0.3);
       } else if (aEnd > now) {     // chém đánh thường
         const fr = Math.min(3, Math.floor((340 - (aEnd - now)) / 85));
-        drawSheet(IMG.attack, p.rx, p.ry, atkRow(p.dir), fr, 4, 4, 0.3);
+        drawSheet(atkImg, p.rx, p.ry, atkRow(p.dir), fr, 4, 4, 0.3);
       } else {
         const fr = p.moving ? Math.floor(walkT * 12) % 4 : 0;
         const bobY = p.moving ? 0 : Math.sin(walkT * 2.5 + ph) * 2.5; // đứng yên cũng nhún nhẹ
-        drawSprite(IMG.walk, p.rx, p.ry + bobY, p.dir, fr, 0.3);
+        drawSprite(walkImg, p.rx, p.ry + bobY, p.dir, fr, 0.3);
       }
       if (p.moving && isMe && Math.random() < 0.22) { // bụi bay ở chân khi chạy
         particles.push({ x: p.rx + (Math.random()-0.5)*22, y: p.ry - 3, vx: (Math.random()-0.5)*36, vy: -24 - Math.random()*36, ang: 0, life: 0.45, maxLife: 0.45, color: 'rgba(190,180,160,0.7)', size: 9, dot: true });
