@@ -9,6 +9,7 @@ let ws, myName = '', players = new Map(), monsters = new Map();
 let camX = WORLD_W/2, camY = WORLD_H/2;
 let SKILLS = {}, ORDER = [];
 let particles = [], dmgNums = [], fxAnims = [];
+let tribActive = null, tribWarnings = []; // độ kiếp: trạng thái + vòng cảnh báo sét
 let zonesFx = []; // P3: vòng trận pháp đang tồn tại trên map
 let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
 // P2: NPC, nhiệm vụ, vật tương tác, auto
@@ -102,9 +103,9 @@ const HALL_NAMES = { 'kiem-cac':'Kiếm Các','than-phu':'Thần Phù','tran-su'
 const HALL_ICONS_UI = { 'kiem-cac':'⚔️','than-phu':'🧧','tran-su':'☯️','duoc-vuong':'🌿' };
 
 // ---------- WebSocket ----------
-function connect(name) {
+function connect(name, gender) {
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'login', name }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'login', name, gender: gender || 'nam' }));
   ws.onmessage = ev => handle(JSON.parse(ev.data));
   ws.onclose = () => sysMsg('Mất kết nối server. Tải lại trang để vào lại.');
 }
@@ -190,6 +191,37 @@ function handle(m) {
   }
   else if (m.t === 'sys') sysMsg(m.text);
   else if (m.t === 'loot') { sysMsg(m.text); SFX.loot(); }
+  else if (m.t === 'gearupdate') {
+    const me = players.get(myName);
+    if (me) { me.bag = m.bag; me.gear = m.gear; }
+    if (document.getElementById('panel-bag').classList.contains('open')) UI.renderBag();
+    if (document.getElementById('panel-char').classList.contains('open')) UI.renderChar();
+  }
+  else if (m.t === 'tribstart') {
+    tribActive = { name: m.name, until: performance.now() + 60000 };
+    sysMsg(`⚡ ${m.name} bắt đầu độ kiếp!`);
+  }
+  else if (m.t === 'tribwave') {
+    sysMsg(`⚡ Đợt ${m.wave}/9!`);
+    for (const s of m.strikes) tribWarnings.push({ x: s.x, y: s.y, until: performance.now() + 1000 });
+    shake = Math.max(shake, 8);
+  }
+  else if (m.t === 'tribstrike') {
+    // Sét đánh: chớp sáng + tia sét
+    fxAnims.push({ kind: 'lightning', x: m.x, y: m.y, life: 0.4, maxLife: 0.4 });
+    for (let i = 0; i < 12; i++) particles.push({ x: m.x + (Math.random()-0.5)*40, y: m.y - 100 - Math.random()*100,
+      vx: (Math.random()-0.5)*100, vy: 300 + Math.random()*200, life: 0.5, maxLife: 0.5, color: '#bfe9ff', size: 6, dot: true });
+    shake = Math.max(shake, 10); SFX.hit();
+  }
+  else if (m.t === 'tribhit') {
+    dmgNums.push({ x: me.rx, y: me.ry - 60, txt: '-' + m.dmg, life: 1.2, color: '#ff6b6b' });
+    hitStop = Math.max(hitStop, 0.15);
+  }
+  else if (m.t === 'tribend') {
+    tribActive = null; tribWarnings.length = 0;
+    if (m.success) sysMsg(`🌟 ${m.name} độ kiếp thành công!`);
+    else sysMsg(`💀 ${m.name} độ kiếp thất bại!`);
+  }
   else if (m.t === 'chat') UI.addChat(m.name, m.text);
   else if (m.t === 'err') sysMsg('⚠️ ' + m.text);
   else if (m.t === 'leave') players.delete(m.name);
@@ -483,6 +515,12 @@ function loop(t) {
   // Map theo map hiện tại
   const mapImg = myMap === 'yeu-thu' ? IMG.map_yeuthu : IMG.map;
   if (mapImg) ctx.drawImage(mapImg, 0, 0, WORLD_W, WORLD_H);
+  if (myMap === 'hac-phong') { // Hắc Phong Lĩnh: phủ tối + gió
+    ctx.fillStyle = 'rgba(20,10,40,0.35)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+  }
+  if (myMap === 'thi-luyen') { // Thí Luyện Trường: sàn đấu
+    ctx.fillStyle = 'rgba(60,40,20,0.25)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+  }
 
   // Hoa dại tĩnh theo map (seeded — vị trí cố định mỗi lần vào)
   if (!window._flowers || window._flowers.map !== myMap) {
@@ -674,6 +712,7 @@ function loop(t) {
       const ph = p.name.charCodeAt(0) || 0;
       const now = performance.now();
       shadow(p.rx, p.ry, 26);
+      if (p.gender === 'nu') ctx.filter = 'hue-rotate(140deg) saturate(1.2)'; // nữ: áo hồng
       const aEnd = atkAnim.get(p.name) || 0, cEnd = castAnim.get(p.name) || 0;
       if (cEnd > now) {            // vận công tung skill
         const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 100));
@@ -708,6 +747,7 @@ function loop(t) {
       // Thanh máu trên đầu (mình: xanh lá, người khác: đỏ) — như game thường
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.rx - 24, p.ry - 118, 48, 5);
       ctx.fillStyle = isMe ? '#5f5' : '#e33'; ctx.fillRect(p.rx - 24, p.ry - 118, 48 * Math.max(0, p.hp / p.maxhp), 5);
+      ctx.filter = 'none'; // reset filter giới tính
     }});
   }
   draws.sort((a, b) => a.y - b.y).forEach(d => d.f());
@@ -797,6 +837,15 @@ function loop(t) {
     if (f.kind === 'ring') {
       ctx.strokeStyle = f.color; ctx.lineWidth = 4; ctx.shadowColor = f.color; ctx.shadowBlur = 16;
       ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (1.2 - a), f.r * 0.55 * (1.2 - a), 0, 0, Math.PI*2); ctx.stroke();
+    } else if (f.kind === 'lightning') { // sét độ kiếp: tia chớp dọc
+      ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = 6; ctx.shadowColor = '#6adce8'; ctx.shadowBlur = 20;
+      ctx.beginPath();
+      let lx = f.x, ly = f.y - 220;
+      ctx.moveTo(lx, ly);
+      for (let i = 0; i < 6; i++) { lx += (Math.random()-0.5)*40; ly += 40; ctx.lineTo(lx, ly); }
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(200,240,255,.5)';
+      ctx.beginPath(); ctx.arc(f.x, f.y, 60 * a, 0, Math.PI*2); ctx.fill();
     } else if (f.kind === 'bagua') { // P3: trận đồ bát quái dưới đất
       const r = f.r * (1.15 - a * 0.15);
       ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.shadowColor = f.color; ctx.shadowBlur = 14;
@@ -953,6 +1002,21 @@ function loop(t) {
       }
       ctx.restore();
     }
+  }
+
+  // Độ kiếp: vòng đỏ cảnh báo sét + màn tối
+  const now2 = performance.now();
+  tribWarnings = tribWarnings.filter(w => w.until > now2);
+  for (const w of tribWarnings) {
+    const wp = 1 + Math.sin(now2 * 0.02) * 0.12;
+    ctx.strokeStyle = 'rgba(255,40,40,.95)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(w.x, w.y, 80 * wp, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,40,40,.15)';
+    ctx.beginPath(); ctx.arc(w.x, w.y, 80 * wp, 0, Math.PI*2); ctx.fill();
+  }
+  if (tribActive && tribActive.until > now2) {
+    ctx.fillStyle = 'rgba(10,10,30,0.45)'; // trời tối khi có người độ kiếp
+    ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
   }
 
   // Số sát thương
@@ -1209,6 +1273,18 @@ setInterval(() => { // vòng auto 400ms
 }, 400);
 
 // ---------- Khởi động ----------
+// Chọn giới tính
+let myGender = 'nam';
+document.getElementById('gender-nam').onclick = () => {
+  myGender = 'nam';
+  document.getElementById('gender-nam').classList.add('selected');
+  document.getElementById('gender-nu').classList.remove('selected');
+};
+document.getElementById('gender-nu').onclick = () => {
+  myGender = 'nu';
+  document.getElementById('gender-nu').classList.add('selected');
+  document.getElementById('gender-nam').classList.remove('selected');
+};
 document.getElementById('join-btn').onclick = async () => {
   const btn = document.getElementById('join-btn');
   const name = document.getElementById('name-input').value.trim();
@@ -1217,7 +1293,7 @@ document.getElementById('join-btn').onclick = async () => {
   resize();
   for (const [k, s] of ASSETS) await loadImg(k, s);
   for (const [id, f] of Object.entries(ICONS)) await loadImg('ic_' + id, 'assets/' + f);
-  connect(name);
+  connect(name, myGender);
   requestAnimationFrame(loop);
 };
 window.__game = { get myName() { return myName; }, players, monsters, send, applySetting, setAuto,

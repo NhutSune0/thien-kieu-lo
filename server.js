@@ -21,12 +21,18 @@ const PLAYER_SPEED = 230;                  // px/s (server kiểm tra)
 const MAPS = {
   'tong-mon': { name: 'Thanh Huyền Tông' },
   'yeu-thu':  { name: 'Yêu Thú Sơn Mạch' },
+  'hac-phong': { name: 'Hắc Phong Lĩnh' },
+  'thi-luyen': { name: 'Thí Luyện Trường' },
 };
 const PORTALS = [
   { id: 'to-yeuthu',  from: 'tong-mon', x: 1920, y: 2620, to: 'yeu-thu',  tx: 1920, ty: 2380, label: 'Yêu Thú Sơn Mạch' },
   { id: 'to-tongmon', from: 'yeu-thu',  x: 1920, y: 2620, to: 'tong-mon', tx: 1920, ty: 2500, label: 'Thanh Huyền Tông' },
+  { id: 'to-hacphong', from: 'yeu-thu', x: 3400, y: 400, to: 'hac-phong', tx: 400, ty: 2400, label: 'Hắc Phong Lĩnh', needLv: 5 },
+  { id: 'to-yeuthu2', from: 'hac-phong', x: 400, y: 2400, to: 'yeu-thu', tx: 3400, ty: 400, label: 'Yêu Thú Sơn Mạch' },
+  { id: 'to-thiluyen', from: 'tong-mon', x: 3400, y: 1400, to: 'thi-luyen', tx: 1920, ty: 2500, label: 'Thí Luyện Trường', needLv: 7 },
+  { id: 'to-tongmon2', from: 'thi-luyen', x: 1920, y: 2620, to: 'tong-mon', tx: 3400, ty: 1400, label: 'Thanh Huyền Tông' },
 ];
-const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 } }; // điểm an toàn mỗi map
+const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 } };
 // Vật cản lớn mỗi map (x, y, r) — quái né khi di chuyển (hồ nước, đá lớn, cây đổ)
 const OBSTACLES = {
   'yeu-thu': [
@@ -77,6 +83,39 @@ const RANKS = {
   'tap-vu': 'Tạp Vụ', 'ngoai-mon': 'Ngoại Môn', 'noi-mon': 'Nội Môn',
   'hac-tam': 'Hạch Tâm', 'chan-truyen': 'Chân Truyền', 'thien-kieu': 'Thiên Kiêu',
 };
+// ---------- Trang bị ----------
+const GEAR_SLOTS = {
+  'vu-khi': 'Vũ Khí', 'ao': 'Áo', 'quan': 'Quần', 'giay': 'Giày', 'nhan': 'Nhẫn', 'day-chuyen': 'Dây Chuyền',
+};
+const GEAR_RARITY = {
+  'thuong': { name: 'Thường', color: '#c0c0c0', mul: 1.0, icon: '⚪' },
+  'tot':    { name: 'Tốt', color: '#5f5', mul: 1.5, icon: '🟢' },
+  'hiem':   { name: 'Hiếm', color: '#5af', mul: 2.2, icon: '🔵' },
+  'cuc-pham': { name: 'Cực Phẩm', color: '#c5f', mul: 3.2, icon: '🟣' },
+};
+const GEAR_BASE = {
+  'vu-khi': { atk: 8 }, 'ao': { def: 6, hp: 40 }, 'quan': { def: 4, hp: 30 },
+  'giay': { def: 3, spd: 10 }, 'nhan': { atk: 5, crit: 2 }, 'day-chuyen': { hp: 50, mp: 20 },
+};
+let gearSeq = 1;
+function rollGear(monsterLv) {
+  const slots = Object.keys(GEAR_SLOTS);
+  const slot = slots[Math.floor(Math.random() * slots.length)];
+  const r = Math.random();
+  const rarity = r < 0.55 ? 'thuong' : r < 0.8 ? 'tot' : r < 0.95 ? 'hiem' : 'cuc-pham';
+  const base = GEAR_BASE[slot], mul = GEAR_RARITY[rarity].mul * (1 + monsterLv * 0.08);
+  const stats = {};
+  for (const [k, v] of Object.entries(base)) stats[k] = Math.round(v * mul);
+  return { id: gearSeq++, slot, rarity, stats, lv: monsterLv };
+}
+function gearStats(p) { // cộng chỉ số từ đồ đang mặc
+  const s = { atk: 0, def: 0, hp: 0, mp: 0, crit: 0, spd: 0 };
+  for (const g of Object.values(p.gear || {})) {
+    if (!g) continue;
+    for (const [k, v] of Object.entries(g.stats)) s[k] = (s[k] || 0) + v;
+  }
+  return s;
+}
 // vis: theme hình ảnh hiệu ứng — 'sword' phi kiếm, 'talisman' phù bay, 'formation' bát quái, 'danfire' đan hỏa
 const HALL_SKILLS = {
   // Tạp Vụ: skill cơ bản, mở dần theo cấp
@@ -161,13 +200,18 @@ function hallData(hall) { // icons + names gửi client cho 1 Đường
   return { icons, names };
 }
 // Công kích hiệu dụng (tính buff Cửu Chuyển Kim Đan)
-const effAtk = p => p.atk * (Date.now() < (p.atkBuffUntil || 0) ? (p.atkBuffMul || 1) : 1);
+const effAtk = p => (p.atk + gearStats(p).atk) * (Date.now() < (p.atkBuffUntil || 0) ? (p.atkBuffMul || 1) : 1);
+const effDef = p => p.def + gearStats(p).def;
+const effCrit = p => 15 + (gearStats(p).crit || 0); // % bạo kích (cơ bản 15%)
 
 // ---------- Quái (P1: 3 loại vòng ngoài) ----------
 const MONSTERS = {
-  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 25 },
-  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 18 },
-  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 12 },
+  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 25, map: 'yeu-thu' },
+  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 18, map: 'yeu-thu' },
+  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 12, map: 'yeu-thu' },
+  // Hắc Phong Lĩnh: quái mạnh hơn
+  'hac-phong-bao':{ hp: 320, dmg: 32, tv: 220, ltMin: 10, ltMax: 18, speed: 180, aggro: 340, count: 15, map: 'hac-phong' },
+  'am-anh-thu':   { hp: 200, dmg: 24, tv: 150, ltMin: 6, ltMax: 12, speed: 170, aggro: 300, count: 12, map: 'hac-phong' },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
@@ -254,10 +298,11 @@ let zidSeq = 1;
 
 function newPlayerState(name) {
   return {
-    name, hall: null, map: 'tong-mon', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
+    name, hall: null, gender: 'nam', map: 'tong-mon', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
     tx: null, ty: null, moving: false,
     level: 1, tv: 0, hp: 120, maxhp: 120, mp: 80, maxmp: 80,
     atk: 24, def: 8, lt: 20, potions: 3,
+    gear: {}, bag: [], // trang bị đang mặc + túi đồ
     cds: {}, shieldUntil: 0, protectUntil: 0, lastAtk: 0, dead: false, respawnAt: 0,
     quests: { active: null, done: [] }, dch: 0, titles: [], ketbai: false,
     rank: 'tap-vu', hallChosen: false, // P3: bậc tông môn + đã chọn Đường chưa
@@ -298,17 +343,19 @@ function spawnMonster(type, map, initial, gx, gy, grp) {
   monsters.set(m.id, m);
   return m;
 }
-// Spawn ban đầu: quái theo bầy 3-5 con trên map Yêu Thú Sơn Mạch
+// Spawn ban đầu: quái theo bầy 3-5 con, theo map của từng loại
 for (const [t, c] of Object.entries(MONSTERS)) {
   let left = c.count;
+  const mmap = c.map || 'yeu-thu';
   while (left > 0) {
     const grpSize = Math.min(left, 3 + Math.floor(Math.random() * 3)); // 3-5 con/bầy
     const grp = grpSeq++;
     const gx = 200 + Math.random() * (WORLD_W - 400), gy = 200 + Math.random() * (WORLD_H - 400);
-    for (let i = 0; i < grpSize; i++) spawnMonster(t, 'yeu-thu', true, gx, gy, grp);
+    for (let i = 0; i < grpSize; i++) spawnMonster(t, mmap, true, gx, gy, grp);
     left -= grpSize;
   }
 }
+spawnArenaBoss(); // boss Thí Luyện Trường
 // Quái hồi sinh: về gần bầy cũ nếu còn
 function alertGroup(m, target) {
   if (!m.grp) return;
@@ -334,6 +381,7 @@ function usePortal(p, id) {
   const pt = PORTALS.find(q => q.id === id);
   if (!pt || pt.from !== p.map) return;
   if (Math.hypot(p.x - pt.x, p.y - pt.y) > 160) { sendTo(p, { t: 'err', text: 'Lại gần cổng hơn đã!' }); return; }
+  if (pt.needLv && p.level < pt.needLv) { sendTo(p, { t: 'err', text: `Cần Luyện Khí tầng ${pt.needLv} mới vào được!` }); return; }
   p.map = pt.to; p.x = pt.tx; p.y = pt.ty;
   p.moving = false; p.tx = p.ty = null; p.channel = null;
   sendMapData(p);
@@ -349,7 +397,9 @@ wss.on('connection', ws => {
     const p = players.get(ws);
     if (msg.t === 'login') {
       const name = String(msg.name || '').trim().slice(0, 16) || 'Vô Danh';
+      const gender = msg.gender === 'nu' ? 'nu' : 'nam';
       const st = loadPlayer(name);
+      if (!st.gender) st.gender = gender; // chỉ set lúc tạo mới, không đổi save cũ
       st.dead = false;
       st.map = 'tong-mon'; // về tông môn an toàn khi đăng nhập
       st.x = SPAWN.x; st.y = SPAWN.y; // về điểm spawn an toàn
@@ -376,6 +426,29 @@ wss.on('connection', ws => {
       castSkill(p, String(msg.id));
     } else if (msg.t === 'attack') {
       basicAttack(p);
+    } else if (msg.t === 'tribulate') {
+      startTribulation(p);
+    } else if (msg.t === 'equip') {
+      const gid = +msg.id; p.bag = p.bag || []; p.gear = p.gear || {};
+      const idx = p.bag.findIndex(g => g.id === gid);
+      if (idx >= 0) {
+        const g = p.bag[idx];
+        const old = p.gear[g.slot];
+        if (old) p.bag.push(old); // tháo đồ cũ ra túi
+        p.gear[g.slot] = g;
+        p.bag.splice(idx, 1);
+        // Cập nhật maxhp/maxmp từ đồ
+        const gs = gearStats(p);
+        sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
+        sendTo(p, { t: 'sys', text: `✅ Đã mặc ${GEAR_RARITY[g.rarity].icon} ${GEAR_SLOTS[g.slot]} [${GEAR_RARITY[g.rarity].name}]` });
+        sendTo(p, { t: 'me', you: pubPlayer(p) });
+      }
+    } else if (msg.t === 'unequip') {
+      const slot = String(msg.slot); p.gear = p.gear || {}; p.bag = p.bag || [];
+      if (p.gear[slot]) { p.bag.push(p.gear[slot]); delete p.gear[slot];
+        sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
+        sendTo(p, { t: 'me', you: pubPlayer(p) });
+      }
     } else if (msg.t === 'potion') {
       usePotion(p);
     } else if (msg.t === 'chat') {
@@ -410,12 +483,14 @@ wss.on('connection', ws => {
 });
 
 function pubPlayer(p) {
+  const gs = gearStats(p);
   return { name: p.name, hall: p.hall, x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2),
-    hp: Math.ceil(p.hp), maxhp: p.maxhp, mp: Math.ceil(p.mp), maxmp: p.maxmp,
+    hp: Math.ceil(p.hp), maxhp: p.maxhp + gs.hp, mp: Math.ceil(p.mp), maxmp: p.maxmp + gs.mp,
     level: p.level, tv: p.tv, tvNeed: tvNeed(p.level), lt: p.lt, potions: p.potions,
-    atk: p.atk, def: p.def || 8,
+    atk: p.atk + gs.atk, def: (p.def || 8) + gs.def, crit: effCrit(p),
     dch: p.dch || 0, titles: p.titles || [], ketbai: !!p.ketbai, qm: npcMarkers(p),
-    rank: p.rank || 'tap-vu', hall: p.hall || null, hallChosen: !!p.hallChosen,
+    rank: p.rank || 'tap-vu', hall: p.hall || null, hallChosen: !!p.hallChosen, gender: p.gender || 'nam',
+    trucCo: !!p.trucCo, gear: p.gear || {}, bag: p.bag || [],
     moving: p.moving, dead: p.dead, shield: Date.now() < p.shieldUntil };
 }
 function broadcast(msg, except) {
@@ -626,6 +701,18 @@ function finishInteract(p) {
   if (!withered) broadcast({ t: 'gathered', id: it.id }); // gốc héo vẫn hiện để hái lại
 }
 
+// ---------- Boss Thí Luyện Trường: Hắc Phong Lão Yêu ----------
+function spawnArenaBoss() {
+  for (const m of monsters.values()) if (!m.dead && m.type === 'hac-phong-lao-yeu') return;
+  const cfg = { hp: 3000, dmg: 45, tv: 800, ltMin: 50, ltMax: 80, speed: 140, aggro: 9999 };
+  const m = { id: midSeq++, type: 'hac-phong-lao-yeu', cfg, boss: true, arenaBoss: true,
+    map: 'thi-luyen', x: 1920, y: 1200, hp: cfg.hp, maxhp: cfg.hp,
+    state: 'idle', wx: 0, wy: 0, wt: 0, target: null, atkAt: 0, dead: false, respawnAt: 0,
+    stunUntil: 0, slowUntil: 0, slowMul: 1, poisonUntil: 0, poisonMul: 0, poisonBy: null, poisonTick: 0, grp: 0 };
+  monsters.set(m.id, m);
+  broadcast({ t: 'sys', text: '👹 Hắc Phong Lão Yêu xuất hiện ở Thí Luyện Trường!' });
+}
+
 // ---------- Boss Thiết Bì Dã Trư (C1-06) ----------
 function spawnBoss(x, y, nearP) {
   for (const m of monsters.values()) if (!m.dead && m.boss) return m; // chỉ 1 boss mỗi lúc
@@ -667,7 +754,8 @@ function damageMonster(m, dmg, p, crit) {
 }
 
 function killMonster(m, p) {
-  m.dead = true; m.respawnAt = Date.now() + (m.boss ? 45000 : 12000);
+  m.dead = true;
+  m.respawnAt = Date.now() + (m.arenaBoss ? 300000 : m.boss ? 45000 : 12000); // boss arena 5 phút
   const ltGain = m.cfg.ltMin + Math.floor(Math.random() * (m.cfg.ltMax - m.cfg.ltMin + 1));
   if (p && !p.dead) {
     p.lt += ltGain;
@@ -680,6 +768,15 @@ function killMonster(m, p) {
     if (dchGain > 0) { p.dch = (p.dch || 0) + dchGain; }
     // 15% rơi Hồi Khí Đan
     if (Math.random() < 0.15) { p.potions++; sendTo(p, { t: 'loot', text: '+1 Hồi Khí Đan' }); }
+    // Rớt trang bị: boss 100%, lang 12%, khác 6%
+    const gearChance = m.boss ? 1 : m.type === 'da-hoa-lang' ? 0.12 : 0.06;
+    if (Math.random() < gearChance) {
+      const g = rollGear(p.level);
+      p.bag = p.bag || []; p.bag.push(g);
+      const rn = GEAR_RARITY[g.rarity];
+      sendTo(p, { t: 'loot', text: `${rn.icon} ${GEAR_SLOTS[g.slot]} [${rn.name}]! Mở túi (B) để mặc.` });
+      sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
+    }
     sendTo(p, { t: 'loot', text: `+${ltGain} linh thạch · +${m.cfg.tv} tu vi` + (dchGain > 0 ? ` · +${dchGain} ĐCH` : '') });
   }
   // NV giết quái: mọi player đang làm NV đúng loại quái đều được +1
@@ -695,8 +792,81 @@ function killMonster(m, p) {
   broadcastMap(m.map, { t: 'mdie', mid: m.id });
 }
 
+// ---------- Độ Kiếp ----------
+function canTribulate(p) {
+  return p.level >= 9 && !p.trucCo && p.tv >= tvNeed(9);
+}
+function startTribulation(p) {
+  if (!canTribulate(p)) { sendTo(p, { t: 'err', text: 'Chưa đủ điều kiện độ kiếp!' }); return; }
+  if (p.tribulation) { sendTo(p, { t: 'err', text: 'Đang độ kiếp!' }); return; }
+  p.tribulation = { wave: 0, nextWave: Date.now() + 2000, strikes: [] };
+  p.tv = 0; // tiêu hao tu vi để dẫn kiếp
+  broadcast({ t: 'sys', text: `⚡ ${p.name} bắt đầu độ Cửu Cửu Lôi Kiếp!` });
+  broadcastMap(p.map, { t: 'tribstart', name: p.name });
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+}
+function updateTribulation(p, now) {
+  const tr = p.tribulation; if (!tr) return;
+  // Mỗi đợt cách nhau 4s, tổng 9 đợt
+  if (tr.wave < 9 && now >= tr.nextWave) {
+    tr.wave++;
+    tr.nextWave = now + 4000;
+    // Sét đánh vào vị trí hiện tại của người chơi + ngẫu nhiên xung quanh
+    const strikes = [];
+    for (let i = 0; i < tr.wave; i++) { // đợt càng cao càng nhiều sét
+      strikes.push({
+        x: Math.round(p.x + (Math.random()-0.5) * 300),
+        y: Math.round(p.y + (Math.random()-0.5) * 300),
+        at: now + 1000, // 1s cảnh báo trước
+        dmg: Math.round(p.maxhp * (0.15 + tr.wave * 0.03)), // đợt 9: 42% máu
+      });
+    }
+    tr.strikes.push(...strikes);
+    broadcastMap(p.map, { t: 'tribwave', name: p.name, wave: tr.wave, strikes: strikes.map(s => ({ x: s.x, y: s.y })) });
+  }
+  // Xử lý sét đánh
+  for (let i = tr.strikes.length - 1; i >= 0; i--) {
+    const s = tr.strikes[i];
+    if (now >= s.at) {
+      tr.strikes.splice(i, 1);
+      broadcastMap(p.map, { t: 'tribstrike', x: s.x, y: s.y });
+      // Nếu người chơi trong vòng 80px -> trúng đòn
+      if (!p.dead && Math.hypot(p.x - s.x, p.y - s.y) < 80) {
+        p.hp -= s.dmg;
+        sendTo(p, { t: 'tribhit', dmg: s.dmg });
+        if (p.hp <= 0) {
+          p.hp = 0; p.dead = true; p.respawnAt = now + 5000;
+          p.tribulation = null; // thất bại
+          broadcast({ t: 'sys', text: `💀 ${p.name} độ kiếp thất bại!` });
+          broadcastMap(p.map, { t: 'tribend', name: p.name, success: false });
+          sendTo(p, { t: 'me', you: pubPlayer(p) });
+          return;
+        }
+        sendTo(p, { t: 'me', you: pubPlayer(p) });
+      }
+    }
+  }
+  // Hoàn thành 9 đợt
+  if (tr.wave >= 9 && tr.strikes.length === 0 && now >= tr.nextWave) {
+    p.tribulation = null;
+    p.trucCo = true; p.level = 10; // Trúc Cơ kỳ
+    p.maxhp += 200; p.hp = p.maxhp; p.maxmp += 100; p.mp = p.maxmp; p.atk += 30; p.def += 15;
+    p.titles = p.titles || []; p.titles.push('Trúc Cơ Chân Nhân');
+    broadcast({ t: 'sys', text: `🌟 ${p.name} độ kiếp thành công! Đột phá Trúc Cơ kỳ!` });
+    broadcastMap(p.map, { t: 'tribend', name: p.name, success: true });
+    sendTo(p, { t: 'me', you: pubPlayer(p) });
+    savePlayer(p);
+  }
+}
+
 function gainTv(p, amount) {
   p.tv += amount;
+  // Cấp 9 max: tích tu vi để độ kiếp (không tự lên cấp)
+  if (p.level >= 9 && !p.trucCo) {
+    if (p.tv > tvNeed(9)) p.tv = tvNeed(9); // giữ max để báo đủ điều kiện
+    sendTo(p, { t: 'me', you: pubPlayer(p) });
+    return;
+  }
   while (p.tv >= tvNeed(p.level) && p.level < 9) {
     p.tv -= tvNeed(p.level); p.level++;
     p.maxhp += 30; p.hp = p.maxhp; p.maxmp += 15; p.mp = p.maxmp; p.atk += 4;
@@ -722,8 +892,8 @@ function basicAttack(p) {
   p.lastAtk = now;
   const targets = nearestMonsters(p.x, p.y, 90, 1, p.map);
   p.dir = targets.length ? Math.atan2(targets[0].y - p.y, targets[0].x - p.x) : p.dir;
-  // Crit: 15% tỉ lệ, 1.8x sát thương
-  const isCrit = Math.random() < 0.15;
+  // Crit: tỉ lệ từ đồ + cơ bản, 1.8x sát thương
+  const isCrit = Math.random() * 100 < effCrit(p);
   const dmg = effAtk(p) * (isCrit ? 1.8 : 1);
   broadcastMap(p.map, { t: 'fx', kind: 'slash', vis: 'sword', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name, crit: isCrit || undefined });
   if (targets.length) damageMonster(targets[0], dmg, p, isCrit);
@@ -848,6 +1018,7 @@ setInterval(() => {
 
   // Người chơi
   for (const p of players.values()) {
+    updateTribulation(p, now); // độ kiếp
     if (p.dead) {
       if (now >= p.respawnAt) {
         p.dead = false; p.hp = p.maxhp; p.mp = p.maxmp;
@@ -900,9 +1071,12 @@ setInterval(() => {
     if (m.dead) {
       if (now >= m.respawnAt) {
         if (m.boss) {
-          // Boss chỉ respawn nếu còn người chơi đang làm C1-06
-          const need = [...players.values()].some(pl => pl.quests && pl.quests.active && pl.quests.active.id === 'C1-06');
-          if (need) spawnBoss(SPAWN.x + 300, SPAWN.y + 200, null);
+          if (m.arenaBoss) { spawnArenaBoss(); } // boss arena: spawn lại ngay khi hết giờ
+          else {
+            // Boss chỉ respawn nếu còn người chơi đang làm C1-06
+            const need = [...players.values()].some(pl => pl.quests && pl.quests.active && pl.quests.active.id === 'C1-06');
+            if (need) spawnBoss(SPAWN.x + 300, SPAWN.y + 200, null);
+          }
           monsters.delete(m.id);
         } else {
           // Hồi sinh gần bầy cũ (cùng loại, còn sống) để giữ bầy

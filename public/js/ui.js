@@ -100,6 +100,16 @@ function togglePanel(id) {
 }
 function closePanels() { document.querySelectorAll('.panel.open').forEach(x => x.classList.remove('open')); }
 const REALMS = ['Luyện Khí', 'Trúc Cơ', 'Kim Đan', 'Nguyên Anh', 'Hóa Thần', 'Luyện Hư', 'Hợp Thể', 'Đại Thừa', 'Độ Kiếp'];
+function renderGearSlots(me) {
+  const slots = ['vu-khi','ao','quan','giay','nhan','day-chuyen'];
+  const names = {'vu-khi':'⚔️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
+  const colors = {thuong:'#c0c0c0',tot:'#5f5',hiem:'#5af','cuc-pham':'#c5f'};
+  return '<div style="display:flex;gap:4px;flex-wrap:wrap">' + slots.map(s => {
+    const g = (me.gear || {})[s];
+    if (!g) return `<span data-slot="${s}" title="Trống" style="opacity:.3;cursor:pointer">${names[s]}</span>`;
+    return `<span data-unequip="${s}" title="${(colors[g.rarity]||'')}" style="color:${colors[g.rarity]||'#fff'};cursor:pointer">${names[s]}</span>`;
+  }).join('') + '</div>';
+}
 function renderChar() {
   const me = G().players.get(G().myName); if (!me) return;
   const realm = REALMS[Math.min(8, Math.floor((me.level - 1) / 10))] || 'Luyện Khí';
@@ -108,6 +118,7 @@ function renderChar() {
   const hallIcon = (G().HALL_ICONS_UI || {})[me.hall] || '';
   document.getElementById('char-body').innerHTML = `
     <div class="row"><span>Đạo hiệu</span><b style="color:#7dff9a">${me.name}</b></div>
+    <div class="row"><span>Giới tính</span><b>${me.gender === 'nu' ? '👸 Nữ' : '🤴 Nam'}</b></div>
     <div class="row"><span>Tông môn</span><b>Thanh Huyền Tông</b></div>
     <div class="row"><span>Bậc</span><b style="color:#9fd8ff">${rankName}</b></div>
     <div class="row"><span>Đường</span><b>${me.hallChosen ? hallIcon + ' ' + hallName : 'Chưa chọn'}</b></div>
@@ -116,22 +127,46 @@ function renderChar() {
     <div class="row"><span>Linh lực</span><b>${Math.ceil(me.mp)} / ${me.maxmp}</b></div>
     <div class="row"><span>Công kích</span><b>⚔️ ${me.atk || 24}</b></div>
     <div class="row"><span>Phòng ngự</span><b>🛡️ ${me.def || 8}</b></div>
+    <div class="row"><span>Bạo kích</span><b>💥 ${me.crit || 15}%</b></div>
+    <div class="row"><span>Trang bị</span><b>${renderGearSlots(me)}</b></div>
     <div class="row"><span>Tu vi</span><b>${fmt(me.tv)} / ${fmt(me.tvNeed)}</b></div>
     <div class="row"><span>Linh thạch</span><b>💎 ${fmt(me.lt)}</b></div>
     <div class="row"><span>Điểm cống hiến</span><b>🏵️ ${fmt(me.dch || 0)}</b></div>
     <div class="row"><span>Danh hiệu</span><b>${(me.titles && me.titles.length) ? me.titles.join(' · ') : '—'}</b></div>
-    <div class="row"><span>Kết bái</span><b>${me.ketbai ? '🤝 Trương Tiểu Hổ' : 'Chưa có'}</b></div>`;
+    <div class="row"><span>Kết bái</span><b>${me.ketbai ? '🤝 Trương Tiểu Hổ' : 'Chưa có'}</b></div>
+    ${me.level >= 9 && !me.trucCo ? `<div class="row"><span>Độ Kiếp</span><button data-trib style="padding:6px 16px;background:linear-gradient(180deg,#9fd8ff,#4a7ac9);border:none;border-radius:6px;font-weight:bold;cursor:pointer">⚡ Độ Kiếp (9 đợt lôi)</button></div>` : ''}
+    ${me.trucCo ? '<div class="row"><span>Cảnh giới</span><b style="color:#c5f">🌟 Trúc Cơ kỳ</b></div>' : ''}`;
+  document.querySelectorAll('#char-body [data-unequip]').forEach(el => el.onclick = () => {
+    G().send({ t: 'unequip', slot: el.dataset.unequip }); setTimeout(renderChar, 300);
+  });
+  const tribBtn = document.querySelector('#char-body [data-trib]');
+  if (tribBtn) tribBtn.onclick = () => {
+    if (confirm('Bắt đầu độ Cửu Cửu Lôi Kiếp? 9 đợt sét, nguy hiểm!')) G().send({ t: 'tribulate' });
+  };
 }
 function renderBag() {
   const me = G().players.get(G().myName); if (!me) return;
+  const bag = me.bag || [];
+  let gearHtml = '';
+  for (const g of bag) {
+    const rn = ({thuong:['⚪','#c0c0c0'],tot:['🟢','#5f5'],hiem:['🔵','#5af'],'cuc-pham':['🟣','#c5f']})[g.rarity] || ['⚪','#c0c0c0'];
+    const slotName = ({'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'})[g.slot] || g.slot;
+    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'Máu':k==='mp'?'Mana':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
+    gearHtml += `<div class="bag-item"><div class="ic">${rn[0]}</div>
+      <div class="nm" style="color:${rn[1]}">${slotName}<small>${statTxt}</small></div>
+      <button data-equip="${g.id}">Mặc</button></div>`;
+  }
   document.getElementById('bag-body').innerHTML = `
     <div class="bag-item"><div class="ic">🧪</div>
       <div class="nm">Hồi Khí Đan<small>Hồi 40% khí huyết · còn <b>${me.potions}</b> viên</small></div>
       <button data-drink>Dùng</button></div>
     <div class="bag-item"><div class="ic">💎</div>
       <div class="nm">Linh thạch<small>${fmt(me.lt)} viên — dùng để mua đồ, cường hóa</small></div></div>
-    <div style="color:#66708c;font-size:12px;margin-top:6px">Trang bị sẽ mở ở giai đoạn sau.</div>`;
+    ${gearHtml || '<div style="color:#66708c;font-size:12px;margin-top:6px">Chưa có trang bị — đi đánh quái để rớt đồ.</div>'}`;
   document.querySelector('#bag-body [data-drink]').onclick = () => { G().send({ t: 'potion' }); setTimeout(renderBag, 300); };
+  document.querySelectorAll('#bag-body [data-equip]').forEach(b => b.onclick = () => {
+    G().send({ t: 'equip', id: b.dataset.equip }); setTimeout(() => { renderBag(); renderChar(); }, 300);
+  });
 }
 const settings = { sound: true, shake: true };
 function renderSettings() {
