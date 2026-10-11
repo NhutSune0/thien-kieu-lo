@@ -467,7 +467,7 @@ wss.on('connection', ws => {
       const gender = msg.gender === 'nu' ? 'nu' : 'nam';
       const cls = ['kiem-cac','than-phu','tran-su'].includes(msg.class) ? msg.class : 'kiem-cac';
       const st = loadPlayer(name);
-      if (!st.gender) st.gender = gender; // chỉ set lúc tạo mới, không đổi save cũ
+      st.gender = gender; // luôn cập nhật theo lựa chọn đăng nhập
       if (!st.hall) { st.hall = cls; st.hallChosen = true; st.rank = 'ngoai-mon'; } // chọn class từ đầu, bỏ Tạp Vụ
       st.dead = false;
       st.map = 'tong-mon'; // về tông môn an toàn khi đăng nhập
