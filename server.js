@@ -484,13 +484,19 @@ wss.on('connection', ws => {
 
 function pubPlayer(p) {
   const gs = gearStats(p);
+  // Phẩm chất cao nhất đang mặc -> aura hiệu ứng
+  const rarOrder = { thuong: 0, tot: 1, hiem: 2, 'cuc-pham': 3 };
+  let bestRar = null, bestOrd = -1;
+  for (const g of Object.values(p.gear || {})) {
+    if (g && (rarOrder[g.rarity] || 0) > bestOrd) { bestOrd = rarOrder[g.rarity]; bestRar = g.rarity; }
+  }
   return { name: p.name, hall: p.hall, x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2),
     hp: Math.ceil(p.hp), maxhp: p.maxhp + gs.hp, mp: Math.ceil(p.mp), maxmp: p.maxmp + gs.mp,
     level: p.level, tv: p.tv, tvNeed: tvNeed(p.level), lt: p.lt, potions: p.potions,
     atk: p.atk + gs.atk, def: (p.def || 8) + gs.def, crit: effCrit(p),
     dch: p.dch || 0, titles: p.titles || [], ketbai: !!p.ketbai, qm: npcMarkers(p),
     rank: p.rank || 'tap-vu', hall: p.hall || null, hallChosen: !!p.hallChosen, gender: p.gender || 'nam',
-    trucCo: !!p.trucCo, gear: p.gear || {}, bag: p.bag || [],
+    trucCo: !!p.trucCo, gear: p.gear || {}, bag: p.bag || [], aura: bestRar,
     moving: p.moving, dead: p.dead, shield: Date.now() < p.shieldUntil };
 }
 function broadcast(msg, except) {
@@ -895,7 +901,8 @@ function basicAttack(p) {
   // Crit: tỉ lệ từ đồ + cơ bản, 1.8x sát thương
   const isCrit = Math.random() * 100 < effCrit(p);
   const dmg = effAtk(p) * (isCrit ? 1.8 : 1);
-  broadcastMap(p.map, { t: 'fx', kind: 'slash', vis: 'sword', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name, crit: isCrit || undefined });
+  const wRar = (p.gear && p.gear['vu-khi'] && p.gear['vu-khi'].rarity) || null;
+  broadcastMap(p.map, { t: 'fx', kind: 'slash', vis: 'sword', x: Math.round(p.x), y: Math.round(p.y), dir: +p.dir.toFixed(2), by: p.name, crit: isCrit || undefined, wrar: wRar });
   if (targets.length) damageMonster(targets[0], dmg, p, isCrit);
 }
 

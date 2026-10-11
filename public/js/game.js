@@ -317,7 +317,8 @@ function spawnFx(m) {
   if (sid && m.kind !== 'aoe') fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 55, life: 0.3, color: '#ffffff' });
   if (m.kind === 'slash') {
     SFX.swing();
-    for (let i = 0; i < 5; i++) swordParticle(m.x + (Math.random()-0.5)*50, m.y - 50 + (Math.random()-0.5)*50, m.dir + (Math.random()-0.5)*0.8, 460, 0.35, '#bfe9ff', 36);
+    const slashCol = m.wrar === 'cuc-pham' ? '#d9a0ff' : m.wrar === 'hiem' ? '#7db9ff' : m.wrar === 'tot' ? '#8fffa0' : '#bfe9ff';
+    for (let i = 0; i < 5; i++) swordParticle(m.x + (Math.random()-0.5)*50, m.y - 50 + (Math.random()-0.5)*50, m.dir + (Math.random()-0.5)*0.8, 460, 0.35, slashCol, 36);
   } else if (m.kind === 'bolt' || m.kind === 'stun') { // phi kiếm / phù định thân bay thẳng
     SFX.skill();
     const vis = m.vis || 'sword';
@@ -748,6 +749,18 @@ function loop(t) {
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(p.rx - 24, p.ry - 118, 48, 5);
       ctx.fillStyle = isMe ? '#5f5' : '#e33'; ctx.fillRect(p.rx - 24, p.ry - 118, 48 * Math.max(0, p.hp / p.maxhp), 5);
       ctx.filter = 'none'; // reset filter giới tính
+      // Aura trang bị theo phẩm chất cao nhất
+      const auraCol = p.aura === 'cuc-pham' ? '#c5f' : p.aura === 'hiem' ? '#5af' : p.aura === 'tot' ? '#5f5' : null;
+      if (auraCol) {
+        const ap = 1 + Math.sin(walkT * 4 + ph) * 0.08;
+        ctx.strokeStyle = auraCol; ctx.lineWidth = 3; ctx.shadowColor = auraCol; ctx.shadowBlur = 18;
+        ctx.globalAlpha = 0.75;
+        ctx.beginPath(); ctx.ellipse(p.rx, p.ry - 52, 34 * ap, 62 * ap, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+        // Tia sáng bay lên
+        if (Math.random() < 0.25) particles.push({ x: p.rx + (Math.random()-0.5)*50, y: p.ry - 20,
+          vx: (Math.random()-0.5)*20, vy: -60 - Math.random()*60, life: 0.8, maxLife: 0.8, color: auraCol, size: 7, dot: true });
+      }
     }});
   }
   draws.sort((a, b) => a.y - b.y).forEach(d => d.f());
