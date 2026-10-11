@@ -1081,11 +1081,14 @@ function loop(t) {
   for (const d of dmgNums) {
     d.life -= dt * 1.2;
     const m = monsters.get(d.mid);
-    const x = m && m.rx !== undefined ? m.rx : d.x, y = (m && m.ry !== undefined ? m.ry : d.y) - 70 - (1 - d.life) * 40;
-    ctx.font = d.crit ? 'bold 22px sans-serif' : 'bold 15px sans-serif'; // crit to hơn
-    ctx.globalAlpha = Math.max(0, d.life);
+    const x = m && m.rx !== undefined ? m.rx : d.x, y = (m && m.ry !== undefined ? m.ry : d.y) - 70 - (1 - d.life) * 50;
+    // Số to hơn, có viền đen cho nổi
+    ctx.font = d.crit ? 'bold 28px sans-serif' : 'bold 19px sans-serif';
+    ctx.globalAlpha = Math.max(0, Math.min(1, d.life * 1.5));
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+    ctx.strokeText(d.txt, x, y);
     ctx.fillStyle = d.color;
-    if (d.crit) { ctx.strokeStyle = '#7a3b00'; ctx.lineWidth = 3; ctx.strokeText(d.txt, x, y); } // viền cho nổi
     ctx.fillText(d.txt, x, y);
     ctx.globalAlpha = 1;
   }

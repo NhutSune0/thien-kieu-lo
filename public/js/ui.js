@@ -110,20 +110,20 @@ function realmName(lvl) {
 function renderGearSlots(me) {
   const slots = ['vu-khi','ao','quan','giay','nhan','day-chuyen'];
   const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
-  const icons = {'vu-khi':'🗡️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
+  const icons = {'vu-khi':'gear-vu-khi.webp','ao':'gear-ao.webp','quan':'gear-quan.webp','giay':'gear-giay.webp','nhan':'gear-nhan.webp','day-chuyen':'gear-day-chuyen.webp'};
   const colors = {thuong:'#8a8a8a',tot:'#2ecc71',hiem:'#3498db','cuc-pham':'#9b59b6'};
   const bgColors = {thuong:'rgba(138,138,138,.12)',tot:'rgba(46,204,113,.12)',hiem:'rgba(52,152,219,.12)','cuc-pham':'rgba(155,89,182,.15)'};
   const rarNames = {thuong:'Thường',tot:'Tốt',hiem:'Hiếm','cuc-pham':'Cực Phẩm'};
   return '<div class="gear-grid">' + slots.map(s => {
     const g = (me.gear || {})[s];
     if (!g) return `<div class="gear-slot empty">
-      <div class="gear-icon">${icons[s]}</div><div class="gear-slotname">${slotNames[s]}</div></div>`;
+      <div class="gear-icon"><img src="assets/${icons[s]}" alt=""></div><div class="gear-slotname">${slotNames[s]}</div></div>`;
     const plus = g.plus || 0;
     const mul = 1 + plus * 0.15;
     const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${Math.round(v*mul)}`).join(' ');
     const plusTxt = plus > 0 ? ` <b style="color:#ffd94a">+${plus}</b>` : '';
     return `<div class="gear-slot" data-unequip="${s}" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}" title="Bấm để tháo">
-      <div class="gear-icon">${icons[s]}</div>
+      <div class="gear-icon"><img src="assets/${icons[s]}" alt=""></div>
       <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}${plusTxt}</div>
       <div class="gear-stats">${statTxt}</div>
       ${plus < 10 ? `<button class="enh-btn" data-enhance="${g.id}" title="Cường hóa">⚒️</button>` : '<div class="gear-max">MAX</div>'}</div>`;
@@ -188,7 +188,7 @@ function renderChar() {
 function renderBag() {
   const me = G().players.get(G().myName); if (!me) return;
   const bag = me.bag || [];
-  const icons = {'vu-khi':'🗡️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
+  const icons = {'vu-khi':'gear-vu-khi.webp','ao':'gear-ao.webp','quan':'gear-quan.webp','giay':'gear-giay.webp','nhan':'gear-nhan.webp','day-chuyen':'gear-day-chuyen.webp'};
   const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
   const colors = {thuong:'#8a8a8a',tot:'#2ecc71',hiem:'#3498db','cuc-pham':'#9b59b6'};
   const bgColors = {thuong:'rgba(138,138,138,.12)',tot:'rgba(46,204,113,.12)',hiem:'rgba(52,152,219,.12)','cuc-pham':'rgba(155,89,182,.15)'};
@@ -197,7 +197,7 @@ function renderBag() {
   for (const g of bag) {
     const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
     gearHtml += `<div class="bag-gear" data-equip="${g.id}" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}">
-      <div class="gear-icon">${icons[g.slot] || '📦'}</div>
+      <div class="gear-icon"><img src="assets/${icons[g.slot]}" alt=""></div>
       <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}</div>
       <div class="gear-slotname">${slotNames[g.slot] || g.slot}</div>
       <div class="gear-stats">${statTxt}</div>
