@@ -23,6 +23,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; f
 .gender-btn { padding: 8px 26px; font-size: 15px; cursor: pointer; border-radius: 8px;
   background: #10162c; border: 1px solid #3a4a7a; color: #9fb0d8; }
 .gender-btn.selected { background: linear-gradient(180deg, #2a3a6a, #1a2547); border-color: #e8a93d; color: #ffe9a8; font-weight: bold; }
+#class-select { display: flex; gap: 10px; justify-content: center; margin: 8px 0 14px; }
+.class-btn { flex: 1; max-width: 130px; padding: 12px 6px; cursor: pointer; border-radius: 10px;
+  background: #10162c; border: 2px solid #3a4a7a; color: #9fb0d8; }
+.class-btn .cl-ic { font-size: 32px; }
+.class-btn .cl-name { font-size: 15px; font-weight: bold; color: #fff; margin: 4px 0 2px; }
+.class-btn .cl-desc { font-size: 11px; color: #66708c; }
+.class-btn.selected { border-color: #e8a93d; background: linear-gradient(180deg, #2a3a6a, #1a2547); }
+.class-btn.selected .cl-desc { color: #ffe9a8; }
 
 /* ---- Game ---- */
 #game { position: fixed; inset: 0; }

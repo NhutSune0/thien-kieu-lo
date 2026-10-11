@@ -104,9 +104,9 @@ const HALL_NAMES = { 'kiem-cac':'Kiếm Các','than-phu':'Thần Phù','tran-su'
 const HALL_ICONS_UI = { 'kiem-cac':'⚔️','than-phu':'🧧','tran-su':'☯️','duoc-vuong':'🌿' };
 
 // ---------- WebSocket ----------
-function connect(name, gender) {
+function connect(name, gender, cls) {
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'login', name, gender: gender || 'nam' }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'login', name, gender: gender || 'nam', class: cls || 'kiem-cac' }));
   ws.onmessage = ev => handle(JSON.parse(ev.data));
   ws.onclose = () => sysMsg('Mất kết nối server. Tải lại trang để vào lại.');
 }
@@ -1313,6 +1313,13 @@ document.getElementById('gender-nu').onclick = () => {
   document.getElementById('gender-nu').classList.add('selected');
   document.getElementById('gender-nam').classList.remove('selected');
 };
+// Chọn class
+let myClass = 'kiem-cac';
+document.querySelectorAll('.class-btn').forEach(b => b.onclick = () => {
+  myClass = b.dataset.class;
+  document.querySelectorAll('.class-btn').forEach(x => x.classList.remove('selected'));
+  b.classList.add('selected');
+});
 document.getElementById('join-btn').onclick = async () => {
   const btn = document.getElementById('join-btn');
   const name = document.getElementById('name-input').value.trim();
@@ -1321,7 +1328,7 @@ document.getElementById('join-btn').onclick = async () => {
   resize();
   for (const [k, s] of ASSETS) await loadImg(k, s);
   for (const [id, f] of Object.entries(ICONS)) await loadImg('ic_' + id, 'assets/' + f);
-  connect(name, myGender);
+  connect(name, myGender, myClass);
   requestAnimationFrame(loop);
 };
 window.__game = { get myName() { return myName; }, players, monsters, send, applySetting, setAuto,

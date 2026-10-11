@@ -211,23 +211,12 @@ function chatOpen() { return document.getElementById('chatinput-wrap').style.dis
 
 // ---------- Nhiệm vụ ----------
 function updateQuest() {
-  const q = G().quest || { active: null, done: [] };
-  const tr = document.getElementById('quest-tracker');
-  if (q.active) {
-    tr.style.display = 'block';
-    document.getElementById('qt-name').textContent = '📜 ' + q.active.id + ' · ' + q.active.name;
-    document.getElementById('qt-obj').textContent = q.active.text;
-  } else tr.style.display = 'none';
-  if (document.getElementById('panel-quest').classList.contains('open')) renderQuestPanel();
+  // Đã bỏ hệ nhiệm vụ — ẩn tracker
+  document.getElementById('quest-tracker').style.display = 'none';
+  return;
 }
 function renderQuestPanel() {
-  const q = G().quest || { active: null, done: [] };
-  const doneCount = (q.done || []).length;
-  let html = '';
-  if (q.active) html += `<div class="q-active"><b>📜 ${q.active.id} · ${q.active.name}</b><div>${q.active.text}</div></div>`;
-  else html += `<div style="color:#66708c">Chưa nhận nhiệm vụ nào.<br>Tìm NPC có dấu <b style="color:#ffd94a">!</b> vàng để nhận.</div>`;
-  html += `<div style="margin-top:10px;color:#8fa0c8;font-size:12px">Chương 1 · Tạp Dịch Viện: ${doneCount}/6 nhiệm vụ</div>`;
-  document.getElementById('quest-body').innerHTML = html;
+  return; // Đã bỏ hệ nhiệm vụ
 }
 
 // ---------- Khung thoại NPC ----------
@@ -238,26 +227,6 @@ function showDlg(m) {
   const lines = document.getElementById('dlg-lines'); lines.innerHTML = '';
   m.lines.forEach(t => { const p = document.createElement('p'); p.textContent = t; lines.appendChild(p); });
   const btns = document.getElementById('dlg-btns'); btns.innerHTML = '';
-  if (m.canAccept) {
-    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = 'Nhận nhiệm vụ';
-    b.onclick = () => { G().send({ t: 'accept', quest: m.qid }); closePanels(); };
-    btns.appendChild(b);
-  }
-  if (m.canTurnin) {
-    const b = document.createElement('button'); b.className = 'dlg-btn turnin'; b.textContent = 'Trả nhiệm vụ';
-    b.onclick = () => { G().send({ t: 'turnin', quest: m.qid }); closePanels(); };
-    btns.appendChild(b);
-  }
-  if (m.canPromote) { // P3: thăng Ngoại Môn
-    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '⬆️ Thăng Ngoại Môn';
-    b.onclick = () => { G().send({ t: 'promote' }); closePanels(); };
-    btns.appendChild(b);
-  }
-  if (m.hallChoice && m.halls) { // P3: mở lại UI chọn Đường
-    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '🏛️ Chọn Đường';
-    b.onclick = () => { openHall(m.halls); };
-    btns.appendChild(b);
-  }
   if (m.canTeleport && m.teleports) { // Dịch chuyển
     for (const tp of m.teleports) {
       const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '🌀 ' + tp.name;

@@ -219,10 +219,6 @@ const MONSTERS = {
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
 const NPCS = {
-  'chap-su-ly':   { name: 'Chấp sự Lý',    x: 1920, y: 1150, map: 'tong-mon' },
-  'lao-tran':     { name: 'Lão Trần',       x: 1700, y: 1500, map: 'tong-mon' },
-  'duoc-tran-tu': { name: 'Dược Trần Tử',   x: 2140, y: 1500, map: 'tong-mon' },
-  'tieu-ho':      { name: 'Trương Tiểu Hổ', x: 1920, y: 1730, map: 'tong-mon' },
   'dich-chuyen':  { name: 'Trưởng Lão Dịch Chuyển', x: 1920, y: 2000, map: 'tong-mon', teleport: true },
 };
 
@@ -411,8 +407,10 @@ wss.on('connection', ws => {
     if (msg.t === 'login') {
       const name = String(msg.name || '').trim().slice(0, 16) || 'Vô Danh';
       const gender = msg.gender === 'nu' ? 'nu' : 'nam';
+      const cls = ['kiem-cac','than-phu','tran-su'].includes(msg.class) ? msg.class : 'kiem-cac';
       const st = loadPlayer(name);
       if (!st.gender) st.gender = gender; // chỉ set lúc tạo mới, không đổi save cũ
+      if (!st.hall) { st.hall = cls; st.hallChosen = true; st.rank = 'ngoai-mon'; } // chọn class từ đầu, bỏ Tạp Vụ
       st.dead = false;
       st.map = 'tong-mon'; // về tông môn an toàn khi đăng nhập
       st.x = SPAWN.x; st.y = SPAWN.y; // về điểm spawn an toàn
@@ -597,34 +595,10 @@ function defaultLines(npcId) {
 }
 function handleTalk(p, npcId) {
   const npc = NPCS[npcId]; if (!npc) return;
-  const a = p.quests.active;
-  let lines = [], canAccept = false, canTurnin = false, qid = null;
-  // 1. Mục tiêu talk của NV đang làm -> hoàn thành bước
-  if (a) {
-    const q = QUESTS[a.id];
-    if (q && a.step < q.objectives.length) {
-      const o = q.objectives[a.step];
-      if (o.type === 'talk' && o.npc === npcId) advanceStep(p);
-    }
-    const q2 = QUESTS[a.id];
-    if (q2 && a.step >= q2.objectives.length && q2.turnin === npcId) {
-      canTurnin = true; qid = a.id; lines = q2.done;
-    }
-  }
-  // 2. NPC là giver của NV khả dụng -> chào nhận NV
-  if (!canTurnin) {
-    const nid = acceptAvailQuest(p);
-    if (nid && QUESTS[nid].giver === npcId) { canAccept = true; qid = nid; lines = QUESTS[nid].offer; }
-  }
-  if (!lines.length) lines = defaultLines(npcId);
-  // P3: Chấp sự Lý cho thăng Ngoại Môn / chọn lại Đường
-  let canProm = false, hallChoice = false;
-  if (npcId === 'chap-su-ly') {
-    if (canPromote(p)) canProm = true;
-    else if (p.rank === 'ngoai-mon' && !p.hallChosen) hallChoice = true;
-  }
-  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept, canTurnin, qid, canPromote: canProm, hallChoice,
-    halls: hallChoice ? HALLS : undefined,
+  const lines = ['Muốn đi đâu? Ta đưa ngươi đi ngay.'];
+  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept: false, canTurnin: false, qid: null,
+    canTeleport: !!npc.teleport, teleports: npc.teleport ? getTeleports(p) : undefined });
+  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept: false, canTurnin: false, qid: null,
     canTeleport: !!npc.teleport, teleports: npc.teleport ? getTeleports(p) : undefined });
 }
 function getTeleports(p) {

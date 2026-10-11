@@ -11,16 +11,27 @@
 <div id="login">
   <div class="login-box">
     <h1>⚔️ THIÊN KIÊU LỘ</h1>
-    <p class="sub">Thanh Huyền Tông · Kiếm Các Đường</p>
-    <img id="hall-portrait" src="assets/nvc-portrait.webp" alt="Kiếm Các Đường">
-    <div class="hall-name">🗡️ Kiếm Các Đường <span class="tag">khả dụng</span></div>
-    <div class="hall-locked">🧧 Thần Phù · ☯️ Trận Sư · 💊 Dược Vương <span class="tag soon">sắp mở</span></div>
+    <p class="sub">Chọn class của bạn</p>
     <input id="name-input" maxlength="16" placeholder="Nhập đạo hiệu của bạn...">
     <div id="gender-select">
       <button id="gender-nam" class="gender-btn selected">🤴 Nam</button>
       <button id="gender-nu" class="gender-btn">👸 Nữ</button>
     </div>
-    <button id="join-btn">Vào tông môn</button>
+    <div id="class-select">
+      <button class="class-btn selected" data-class="kiem-cac">
+        <div class="cl-ic">🗡️</div><div class="cl-name">Kiếm Tu</div>
+        <div class="cl-desc">Cận chiến · dame to</div>
+      </button>
+      <button class="class-btn" data-class="than-phu">
+        <div class="cl-ic">🧧</div><div class="cl-name">Phù Tu</div>
+        <div class="cl-desc">Đánh xa · phép thuật</div>
+      </button>
+      <button class="class-btn" data-class="tran-su">
+        <div class="cl-ic">☯️</div><div class="cl-name">Trận Sư</div>
+        <div class="cl-desc">Khống chế · trận pháp</div>
+      </button>
+    </div>
+    <button id="join-btn">Vào game farm quái</button>
   </div>
 </div>
 
@@ -55,7 +66,6 @@
   <div id="menubtns">
     <button data-p="panel-char" title="Nhân vật (C)">👤</button>
     <button data-p="panel-bag" title="Túi đồ (B)">🎒</button>
-    <button data-p="panel-quest" title="Nhiệm vụ (N)">📜</button>
     <button data-p="panel-map" title="Bản đồ (M)">🗺️</button>
     <button id="chatbtn" title="Chat (Enter)">💬</button>
     <button data-p="panel-settings" title="Cài đặt (Esc)">⚙️</button>
