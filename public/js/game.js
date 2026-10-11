@@ -1321,6 +1321,31 @@ setInterval(() => { // vòng auto 400ms
       return;
     }
   }
+  // 1c. NV độ kiếp: tự đến Lôi Kiếp Đài và bắt đầu độ kiếp
+  if (act && !act.done && act.tribulate) {
+    if (myMap !== 'loi-kiep') { goToMap('loi-kiep'); return; }
+    // Đã ở Lôi Kiếp Đài, bắt đầu độ kiếp (nếu chưa đang độ)
+    if (!me.tribulation) {
+      const now = Date.now();
+      if (now - (window._lastTribStart || 0) > 5000) {
+        window._lastTribStart = now;
+        send({ t: 'tribulate' });
+      }
+    }
+    // Đang độ kiếp: đánh quái lôi kiếp (phần farm bên dưới sẽ tự tìm quái)
+    // Nếu không có quái lôi kiếp nào thì đợi
+    let tribMob = null;
+    for (const m of monsters.values()) {
+      if (m.type === 'loi-kiep-thu' && !m.dead) { tribMob = m; break; }
+    }
+    if (tribMob) {
+      const d = Math.hypot(tribMob.x - me.x, tribMob.y - me.y);
+      if (d > 110) send({ t: 'move', x: Math.round(tribMob.x), y: Math.round(tribMob.y) });
+      else if (!autoSkill(me, tribMob)) send({ t: 'attack' });
+      return;
+    }
+    return; // đợi đợt quái tiếp theo
+  }
   // 2. Farm: không có NV cần làm và map hiện tại hết quái -> sang Yêu Thú Sơn Mạch
   // Tìm quái GẦN NHẤT không giới hạn khoảng cách (trước đây giới hạn 1000px nên quái xa là đứng im)
   const killType = act && !act.done ? act.killMob : null; // NV giết quái chỉ định: ưu tiên đúng loại

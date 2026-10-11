@@ -684,7 +684,8 @@ function questInfo(p) {
   const o = q.objectives[a.step];
   const prog = o.count ? ` (${Math.min(a.count, o.count)}/${o.count})` : '';
   return { active: { id: a.id, name: q.name, step: a.step, count: a.count, text: o.text + prog, done: false, talkNpc: o.type === 'talk' ? o.npc : null,
-    gather: o.type === 'collect' ? o.item : (o.type === 'interact' ? o.obj : null), killMob: o.type === 'kill' ? o.mob : null }, done };
+    gather: o.type === 'collect' ? o.item : (o.type === 'interact' ? o.obj : null), killMob: o.type === 'kill' ? o.mob : null,
+    tribulate: o.type === 'tribulate' }, done };
 }
 // Marker trên đầu NPC: '!' có NV mới, '?' trả được
 function npcMarkers(p) {
@@ -1056,6 +1057,13 @@ function tribulationSuccess(p) {
   p.titles = p.titles || []; p.titles.push('Trúc Cơ Chân Nhân');
   broadcast({ t: 'sys', text: `🌟 ${p.name} độ kiếp thành công! Đột phá Trúc Cơ kỳ! (+600 HP, +100 Công, mở kỹ năng Trúc Cơ)` });
   broadcastMap(p.map, { t: 'tribend', name: p.name, success: true });
+  // Hoàn thành nhiệm vụ độ kiếp (nếu đang làm)
+  const a = p.quests && p.quests.active;
+  if (a) {
+    const q = QUESTS[a.id];
+    const o = q && q.objectives[a.step];
+    if (o && o.type === 'tribulate') advanceStep(p);
+  }
   // Mở skill Trúc Cơ cho class
   sendTo(p, { t: 'hallskills', skills: getSkills(p), order: getOrder(p), icons: hallData(p.hall).icons, names: hallData(p.hall).names });
   sendTo(p, { t: 'sys', text: `✨ Đã mở khóa kỹ năng Trúc Cơ!` });
