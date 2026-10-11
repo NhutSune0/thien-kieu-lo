@@ -111,13 +111,55 @@ function rollGear(monsterLv) {
   for (const [k, v] of Object.entries(base)) stats[k] = Math.round(v * mul);
   return { id: gearSeq++, slot, rarity, stats, lv: monsterLv };
 }
-function gearStats(p) { // cộng chỉ số từ đồ đang mặc
+function gearStats(p) { // cộng chỉ số từ đồ đang mặc (kèm cường hóa)
   const s = { atk: 0, def: 0, hp: 0, mp: 0, crit: 0, spd: 0 };
   for (const g of Object.values(p.gear || {})) {
     if (!g) continue;
-    for (const [k, v] of Object.entries(g.stats)) s[k] = (s[k] || 0) + v;
+    const mul = 1 + (g.plus || 0) * 0.15; // mỗi cấp cường hóa +15%
+    for (const [k, v] of Object.entries(g.stats)) s[k] = (s[k] || 0) + Math.round(v * mul);
   }
   return s;
+}
+// Cường hóa: chi phí linh thạch và tỉ lệ thành công theo cấp
+function enhanceCost(g) {
+  const plus = g.plus || 0;
+  const rarMul = { thuong: 1, tot: 1.5, hiem: 2.5, 'cuc-pham': 4 }[g.rarity] || 1;
+  return Math.round(50 * Math.pow(2.2, plus) * rarMul);
+}
+function enhanceRate(g) {
+  const plus = g.plus || 0;
+  if (plus < 3) return 100;
+  if (plus < 5) return 80;
+  if (plus < 7) return 60;
+  if (plus < 9) return 40;
+  return 25; // +9 -> +10
+}
+const MAX_PLUS = 10;
+function doEnhance(p, gid) {
+  p.bag = p.bag || []; p.gear = p.gear || {};
+  // Tìm đồ: ưu tiên trong túi, sau đó đồ đang mặc
+  let g = p.bag.find(x => x.id === gid), loc = 'bag';
+  if (!g) {
+    for (const [slot, it] of Object.entries(p.gear)) {
+      if (it && it.id === gid) { g = it; loc = 'gear'; break; }
+    }
+  }
+  if (!g) { sendTo(p, { t: 'err', text: 'Không tìm thấy trang bị!' }); return; }
+  g.plus = g.plus || 0;
+  if (g.plus >= MAX_PLUS) { sendTo(p, { t: 'err', text: 'Đã cường hóa tối đa!' }); return; }
+  const cost = enhanceCost(g);
+  if (p.lt < cost) { sendTo(p, { t: 'err', text: `Cần ${cost} linh thạch để cường hóa!` }); return; }
+  p.lt -= cost;
+  const rate = enhanceRate(g);
+  if (Math.random() * 100 < rate) {
+    g.plus++;
+    sendTo(p, { t: 'sys', text: `✨ Cường hóa thành công! ${GEAR_SLOTS[g.slot]} +${g.plus}` });
+  } else {
+    sendTo(p, { t: 'sys', text: `💥 Cường hóa thất bại! ${GEAR_SLOTS[g.slot]} vẫn +${g.plus}` });
+  }
+  sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  savePlayer(p);
 }
 // vis: theme hình ảnh hiệu ứng — 'sword' phi kiếm, 'talisman' phù bay, 'formation' bát quái, 'danfire' đan hỏa
 const HALL_SKILLS = {
@@ -278,8 +320,15 @@ const tvNeed = lvl => {
   // Kiểu MU: cấp đầu lên nhanh, cấp cao chậm dần
   const fast = { 1: 40, 2: 70, 3: 120, 4: 180 };
   if (fast[lvl]) return fast[lvl];
-  return Math.round(220 * Math.pow(1.45, lvl - 5)); // từ cấp 5 trở đi
+  if (lvl < 10) return Math.round(220 * Math.pow(1.45, lvl - 5)); // Luyện Khí 5-9
+  // Trúc Cơ 10-19: tốn hơn
+  return Math.round(1500 * Math.pow(1.35, lvl - 10));
 };
+// Hiển thị cảnh giới: 1-9 Luyện Khí, 10-19 Trúc Cơ
+function realmName(lvl) {
+  if (lvl < 10) return `Luyện Khí tầng ${lvl}`;
+  return `Trúc Cơ tầng ${lvl - 9}`;
+}
 
 // ---------- HTTP static ----------
 const MIME = { '.html':'text/html', '.css':'text/css', '.js':'application/javascript', '.json':'application/json', '.webp':'image/webp', '.png':'image/png', '.jpg':'image/jpeg' };
@@ -462,6 +511,8 @@ wss.on('connection', ws => {
         sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
         sendTo(p, { t: 'me', you: pubPlayer(p) });
       }
+    } else if (msg.t === 'enhance') {
+      doEnhance(p, +msg.id);
     } else if (msg.t === 'potion') {
       usePotion(p);
     } else if (msg.t === 'chat') {
@@ -889,16 +940,23 @@ function updateTribulation(p, now) {
 
 function gainTv(p, amount) {
   p.tv += amount;
-  // Cấp 9 max: tích tu vi để độ kiếp (không tự lên cấp)
-  if (p.level >= 9 && !p.trucCo) {
+  // Cấp 9 max (chưa độ kiếp): tích tu vi để độ kiếp (không tự lên cấp)
+  if (p.level >= 9 && p.level < 10 && !p.trucCo) {
     if (p.tv > tvNeed(9)) p.tv = tvNeed(9); // giữ max để báo đủ điều kiện
     sendTo(p, { t: 'me', you: pubPlayer(p) });
     return;
   }
-  while (p.tv >= tvNeed(p.level) && p.level < 9) {
+  // Cấp 19 max (Trúc Cơ đỉnh): tích tu vi chờ độ kiếp Kim Đan sau này
+  const maxLvl = 19;
+  if (p.level >= maxLvl) {
+    if (p.tv > tvNeed(maxLvl)) p.tv = tvNeed(maxLvl);
+    sendTo(p, { t: 'me', you: pubPlayer(p) });
+    return;
+  }
+  while (p.tv >= tvNeed(p.level) && p.level < maxLvl) {
     p.tv -= tvNeed(p.level); p.level++;
     p.maxhp += 30; p.hp = p.maxhp; p.maxmp += 15; p.mp = p.maxmp; p.atk += 4;
-    broadcast({ t: 'sys', text: `🎉 ${p.name} đột phá Luyện Khí tầng ${p.level}!` });
+    broadcast({ t: 'sys', text: `🎉 ${p.name} đột phá ${realmName(p.level)}!` });
     // Kiểm tra skill mới mở khóa
     const hall = p.hall || 'tap-vu';
     const order = HALL_ORDERS[hall] || HALL_ORDERS['tap-vu'];

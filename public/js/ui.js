@@ -12,7 +12,7 @@ function updateMe(me) {
   setBar('hp', hpP, `${Math.ceil(me.hp)}/${me.maxhp}`);
   setBar('mp', mpP, `${Math.ceil(me.mp)}/${me.maxmp}`);
   setBar('tv', tvP, `${fmt(me.tv)}/${fmt(me.tvNeed)}`);
-  document.getElementById('lvl-text').textContent = `Luyện Khí ${me.level}`;
+  document.getElementById('lvl-text').textContent = realmName(me.level);
   document.getElementById('lt-text').textContent = `💎 ${fmt(me.lt)} LT`;
   document.getElementById('pot-text').textContent = `🧪 ${me.potions} (Q)`;
   // trạng thái skill: hết mana -> xám
@@ -103,6 +103,10 @@ function togglePanel(id) {
 }
 function closePanels() { document.querySelectorAll('.panel.open').forEach(x => x.classList.remove('open')); }
 const REALMS = ['Luyện Khí', 'Trúc Cơ', 'Kim Đan', 'Nguyên Anh', 'Hóa Thần', 'Luyện Hư', 'Hợp Thể', 'Đại Thừa', 'Độ Kiếp'];
+function realmName(lvl) {
+  if (lvl < 10) return `Luyện Khí tầng ${lvl}`;
+  return `Trúc Cơ tầng ${lvl - 9}`;
+}
 function renderGearSlots(me) {
   const slots = ['vu-khi','ao','quan','giay','nhan','day-chuyen'];
   const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
@@ -114,11 +118,15 @@ function renderGearSlots(me) {
     const g = (me.gear || {})[s];
     if (!g) return `<div class="gear-slot empty">
       <div class="gear-icon">${icons[s]}</div><div class="gear-slotname">${slotNames[s]}</div></div>`;
-    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
+    const plus = g.plus || 0;
+    const mul = 1 + plus * 0.15;
+    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${Math.round(v*mul)}`).join(' ');
+    const plusTxt = plus > 0 ? ` <b style="color:#ffd94a">+${plus}</b>` : '';
     return `<div class="gear-slot" data-unequip="${s}" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}" title="Bấm để tháo">
       <div class="gear-icon">${icons[s]}</div>
-      <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}</div>
-      <div class="gear-stats">${statTxt}</div></div>`;
+      <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}${plusTxt}</div>
+      <div class="gear-stats">${statTxt}</div>
+      ${plus < 10 ? `<button class="enh-btn" data-enhance="${g.id}" title="Cường hóa">⚒️</button>` : '<div class="gear-max">MAX</div>'}</div>`;
   }).join('') + '</div>';
 }
 function renderChar() {
@@ -157,6 +165,13 @@ function renderChar() {
   ${me.level >= 9 && !me.trucCo ? `<button data-trib class="trib-btn">⚡ Độ Kiếp (đến Lôi Kiếp Đài)</button>` : ''}`;
   document.querySelectorAll('#char-body [data-unequip]').forEach(el => el.onclick = () => {
     G().send({ t: 'unequip', slot: el.dataset.unequip }); setTimeout(renderChar, 300);
+  });
+  document.querySelectorAll('#char-body [data-enhance]').forEach(btn => btn.onclick = (e) => {
+    e.stopPropagation(); // không trigger unequip
+    if (confirm('Cường hóa trang bị? Tốn linh thạch, mỗi cấp +15% chỉ số.')) {
+      G().send({ t: 'enhance', id: btn.dataset.enhance });
+      setTimeout(renderChar, 500);
+    }
   });
   const tribBtn = document.querySelector('#char-body [data-trib]');
   if (tribBtn) tribBtn.onclick = () => {
@@ -300,5 +315,5 @@ function updateBoss(m) {
   document.getElementById('boss-hptext').textContent = `${Math.max(0, Math.ceil(m.hp))}/${m.maxhp}`;
 }
 
-window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings, showDlg, updateQuest, updateBoss, openHall, renderChar };
+window.UI = { updateMe, buildSkills, trySkill, drawMinimap, togglePanel, closePanels, addChat, openChat, closeChat, chatOpen, settings, showDlg, updateQuest, updateBoss, openHall, renderChar, realmName };
 })();

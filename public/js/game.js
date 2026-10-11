@@ -148,10 +148,10 @@ function handle(m) {
       fxAnims.push({ kind: 'pillar', x: m.you.x, y: m.you.y, life: 1.4, maxLife: 1.4, color: '#ffd94a' });
       fxAnims.push({ kind: 'ring', x: m.you.x, y: m.you.y, r: 150, life: 0.9, color: '#ffd94a' });
       fxAnims.push({ kind: 'flash', x: m.you.x, y: m.you.y - 60, r: 90, life: 0.4, color: '#fff6c8' });
-      fxAnims.push({ kind: 'namecall', x: m.you.x, y: m.you.y - 230, text: 'Đột phá · Luyện Khí tầng ' + m.you.level + '!', life: 2.4, maxLife: 2.4 });
+      fxAnims.push({ kind: 'namecall', x: m.you.x, y: m.you.y - 230, text: 'Đột phá · ' + UI.realmName(m.you.level) + '!', life: 2.4, maxLife: 2.4 });
       for (let i = 0; i < 16; i++) particles.push({ x: m.you.x + (Math.random()-0.5)*80, y: m.you.y, vx: (Math.random()-0.5)*60, vy: -220 - Math.random()*160, ang: 0, life: 0.9, maxLife: 0.9, color: '#ffd94a', size: 9, dot: true, glow: true });
       shake = Math.max(shake, 10); SFX.skill();
-      sysMsg('🎉 Đột phá Luyện Khí tầng ' + m.you.level + '!');
+      sysMsg('🎉 Đột phá ' + UI.realmName(m.you.level) + '!');
     }
     players.set(m.you.name, Object.assign(players.get(m.you.name) || {}, m.you));
     UI.updateMe(m.you);
