@@ -319,6 +319,16 @@ function showDlg(m) {
   const lines = document.getElementById('dlg-lines'); lines.innerHTML = '';
   m.lines.forEach(t => { const p = document.createElement('p'); p.textContent = t; lines.appendChild(p); });
   const btns = document.getElementById('dlg-btns'); btns.innerHTML = '';
+  if (m.canAccept) { // Nhận nhiệm vụ
+    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '📜 Nhận nhiệm vụ';
+    b.onclick = () => { G().send({ t: 'accept', quest: m.qid }); closePanels(); };
+    btns.appendChild(b);
+  }
+  if (m.canTurnin) { // Trả nhiệm vụ
+    const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '✅ Trả nhiệm vụ';
+    b.onclick = () => { G().send({ t: 'turnin', quest: m.qid }); closePanels(); };
+    btns.appendChild(b);
+  }
   if (m.canTeleport && m.teleports) { // Dịch chuyển
     for (const tp of m.teleports) {
       const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '🌀 ' + tp.name;

@@ -763,7 +763,22 @@ function handleTalk(p, npcId) {
     ],
   };
   if (dialogs[npcId]) lines = dialogs[npcId];
-  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept: false, canTurnin: false, qid: null,
+  // Kiểm tra nhiệm vụ có thể nhận/trả
+  const nid = acceptAvailQuest(p);
+  const a = p.quests.active;
+  let canAccept = false, canTurnin = false, qid = null;
+  if (nid && QUESTS[nid].giver === npcId) {
+    canAccept = true; qid = nid;
+    lines = QUESTS[nid].offer;
+  }
+  if (a && QUESTS[a.id]) {
+    const q = QUESTS[a.id];
+    if (a.step >= q.objectives.length && q.turnin === npcId) {
+      canTurnin = true; qid = a.id;
+      lines = q.done;
+    }
+  }
+  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept, canTurnin, qid,
     canTeleport: !!npc.teleport, teleports: npc.teleport ? getTeleports(p) : undefined });
 }
 function getTeleports(p) {

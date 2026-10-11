@@ -92,9 +92,13 @@ const ASSETS = [
   ['npc_duoc', 'assets/npc-duoc-tran-tu.webp'], ['npc_ho', 'assets/npc-tieu-ho.webp'],
   ['m_boss', 'assets/mob-thiet-bi-da-tru.webp'],
 ];
-const NPC_IMG = { 'chap-su-ly': 'npc_ly', 'lao-tran': 'npc_tran', 'duoc-tran-tu': 'npc_duoc', 'tieu-ho': 'npc_ho' };
+const NPC_IMG = { 'chap-su-ly': 'npc_ly', 'lao-tran': 'npc_tran', 'duoc-tran-tu': 'npc_duoc', 'tieu-ho': 'npc_ho',
+  'dich-chuyen': 'npc_ly', 'chuong-mon': 'npc_tran', 'truyen-cong': 'npc_ly', 'dan-su': 'npc_duoc',
+  'thu-kho': 'npc_ho', 'thu-vien': 'npc_tran', 'luyen-dan-su': 'npc_duoc' };
 const NPC_PORTRAIT = { 'chap-su-ly': 'assets/npc-chap-su-ly.webp', 'lao-tran': 'assets/npc-lao-tran.webp',
-  'duoc-tran-tu': 'assets/npc-duoc-tran-tu.webp', 'tieu-ho': 'assets/npc-tieu-ho.webp' };
+  'duoc-tran-tu': 'assets/npc-duoc-tran-tu.webp', 'tieu-ho': 'assets/npc-tieu-ho.webp',
+  'chuong-mon': 'assets/npc-chuong-mon.webp', 'truyen-cong': 'assets/npc-truyen-cong.webp',
+  'dan-su': 'assets/npc-dan-su.webp', 'thu-kho': 'assets/npc-thu-kho.webp' };
 const IT_EMOJI = { 'la': '🍂', 'linh-thao': '🌿', 'linh-thao-heo': '🥀', 'gieng': '⛲' };
 const ICONS = { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp','van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp' };
 const MOB_IMG = { 'hac-mao-thu':'m_hac', 'thanh-truc-xa':'m_xa', 'da-hoa-lang':'m_lang', 'thiet-bi-da-tru':'m_boss',
@@ -1298,12 +1302,9 @@ setInterval(() => { // vòng auto 400ms
   if (!qNpc && !act) { const n = npcs.find(x => qm[x.id] === '!'); if (n) { qNpc = n; qKind = 'accept'; } }
   if (!qNpc && act && !act.done && act.talkNpc) { const n = npcs.find(x => x.id === act.talkNpc); if (n) { qNpc = n; qKind = 'talk'; } }
   if (qNpc) {
-    // Chỉ tự qua map khác khi đi TRẢ nhiệm vụ ('?'); nhận/nói chuyện thì để người chơi tự đi (đỡ bị lôi đi farm giữa chừng)
-    if (qNpc.map !== myMap && qKind !== 'turnin') qNpc = null;
-  }
-  if (qNpc) {
-    if (qNpc.map !== myMap) { goToMap(qNpc.map); return; } // qua cổng trả NV
+    if (qNpc.map !== myMap) { goToMap(qNpc.map); return; } // tự qua map cho mọi loại NV
     if (qKind === 'turnin') { if (nearNpc(qNpc)) send({ t: 'turnin', quest: act.id }); else goNpc(qNpc); return; }
+    if (qKind === 'accept') { if (nearNpc(qNpc)) { autoTalk(qNpc); } else goNpc(qNpc); return; }
     if (nearNpc(qNpc)) autoTalk(qNpc); else goNpc(qNpc);
     return;
   }
