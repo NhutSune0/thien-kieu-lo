@@ -176,32 +176,36 @@ const HALL_SKILLS = {
     'van-kiem-quy-tong':   { cd: 15, mp: 45, range: 300, dmgMul: 3.2, kind: 'nova',    radius: 230, vis: 'sword', unlockLv: 8 },
     'hon-don-kim-chung':   { cd: 20, mp: 40, range: 0,   dmgMul: 0,   kind: 'shield',  dur: 6, vis: 'sword', unlockLv: 9 },
     'khai-thien-nhat-kiem':{ cd: 60, mp: 80, range: 540, dmgMul: 8.0, kind: 'line',    width: 130, vis: 'sword', unlockLv: 10 },
+    'kiem-y-thong-thien':  { cd: 45, mp: 100, range: 500, dmgMul: 12.0, kind: 'nova', radius: 300, vis: 'sword', unlockLv: 11 }, // Trúc Cơ
   },
   'than-phu': {
     'hoa-phu-lien-chau': { cd: 3,  mp: 10, range: 430, dmgMul: 1.5, kind: 'bolt', targets: 3, vis: 'talisman', unlockLv: 5 },
     'dinh-than-phu':     { cd: 8,  mp: 20, range: 380, dmgMul: 0.8, kind: 'stun', targets: 1, stunDur: 3, vis: 'talisman', unlockLv: 6 },
     'ngu-loi-phu':       { cd: 12, mp: 30, range: 360, dmgMul: 2.6, kind: 'aoe',  targets: 5, vis: 'talisman', unlockLv: 7 },
     'van-phu-trieu-tong':{ cd: 60, mp: 70, range: 420, dmgMul: 7.0, kind: 'rain', targets: 8, radius: 200, vis: 'talisman', unlockLv: 8 },
+    'cuu-thien-loi-phu': { cd: 45, mp: 100, range: 450, dmgMul: 10.0, kind: 'rain', targets: 10, radius: 250, vis: 'talisman', unlockLv: 10 }, // Trúc Cơ
   },
   'tran-su': {
     'tu-linh-tieu-tran':     { cd: 3,  mp: 10, range: 400, kind: 'zone', radius: 110, dur: 5, tickMul: 0.8, vis: 'formation', unlockLv: 5 },
     'khon-long-tran':        { cd: 10, mp: 25, range: 380, kind: 'zone', radius: 130, dur: 4, tickMul: 0.5, slowMul: 0.4, slowDur: 4, stunDur: 2, vis: 'formation', unlockLv: 6 },
     'sat-phat-kiem-tran':    { cd: 15, mp: 35, range: 350, dmgMul: 3.0, kind: 'aoe', targets: 5, vis: 'formation', unlockLv: 7 },
     'cuu-cung-bat-quai-tran':{ cd: 60, mp: 70, range: 320, dmgMul: 6.0, kind: 'nova', radius: 280, slowMul: 0.5, slowDur: 4, vis: 'formation', unlockLv: 8 },
+    'thien-dia-vo-cuc-tran': { cd: 45, mp: 100, range: 400, dmgMul: 9.0, kind: 'nova', radius: 350, slowMul: 0.3, slowDur: 5, vis: 'formation', unlockLv: 10 }, // Trúc Cơ
   },
   'duoc-vuong': {
     'hoi-xuan-dan-khi':  { cd: 3,  mp: 10, kind: 'heal', healMul: 0.3, vis: 'danfire', unlockLv: 5 },
     'thanh-tam-dan':     { cd: 10, mp: 20, kind: 'shield', dur: 6, healMul: 0.15, vis: 'danfire', unlockLv: 6 },
     'doc-dan-boc-phat':  { cd: 12, mp: 30, range: 360, dmgMul: 2.4, kind: 'aoe', targets: 4, poisonDur: 5, poisonMul: 0.3, vis: 'danfire', unlockLv: 7 },
     'cuu-chuyen-kim-dan':{ cd: 60, mp: 70, kind: 'heal', healMul: 0.8, atkBuffMul: 1.3, atkBuffDur: 10, vis: 'danfire', unlockLv: 8 },
+    'vo-cuc-dan-dien':   { cd: 45, mp: 100, kind: 'heal', healMul: 1.0, atkBuffMul: 1.5, atkBuffDur: 15, vis: 'danfire', unlockLv: 10 }, // Trúc Cơ
   },
 };
 const HALL_ORDERS = {
   'tap-vu': ['thiet-quyen','hoi-khi','than-hanh'],
-  'kiem-cac': ['linh-kiem-tram','cuu-loi-kiem','phan-thien-kiem','van-kiem-quy-tong','hon-don-kim-chung','khai-thien-nhat-kiem'],
-  'than-phu': ['hoa-phu-lien-chau','dinh-than-phu','ngu-loi-phu','van-phu-trieu-tong'],
-  'tran-su': ['tu-linh-tieu-tran','khon-long-tran','sat-phat-kiem-tran','cuu-cung-bat-quai-tran'],
-  'duoc-vuong': ['hoi-xuan-dan-khi','thanh-tam-dan','doc-dan-boc-phat','cuu-chuyen-kim-dan'],
+  'kiem-cac': ['linh-kiem-tram','cuu-loi-kiem','phan-thien-kiem','van-kiem-quy-tong','hon-don-kim-chung','khai-thien-nhat-kiem','kiem-y-thong-thien'],
+  'than-phu': ['hoa-phu-lien-chau','dinh-than-phu','ngu-loi-phu','van-phu-trieu-tong','cuu-thien-loi-phu'],
+  'tran-su': ['tu-linh-tieu-tran','khon-long-tran','sat-phat-kiem-tran','cuu-cung-bat-quai-tran','thien-dia-vo-cuc-tran'],
+  'duoc-vuong': ['hoi-xuan-dan-khi','thanh-tam-dan','doc-dan-boc-phat','cuu-chuyen-kim-dan','vo-cuc-dan-dien'],
 };
 const HALL_ICONS = {
   'thiet-quyen':'icon-thiet-quyen.webp','hoi-khi':'icon-hoi-khi.webp','than-hanh':'icon-than-hanh.webp',
@@ -213,6 +217,8 @@ const HALL_ICONS = {
   'sat-phat-kiem-tran':'icon-sat-phat-kiem-tran.webp','cuu-cung-bat-quai-tran':'icon-cuu-cung-bat-quai-tran.webp',
   'hoi-xuan-dan-khi':'icon-hoi-xuan-dan-khi.webp','thanh-tam-dan':'icon-thanh-tam-dan.webp',
   'doc-dan-boc-phat':'icon-doc-dan-boc-phat.webp','cuu-chuyen-kim-dan':'icon-cuu-chuyen-kim-dan.webp',
+  'kiem-y-thong-thien':'icon-khai-thien-nhat-kiem.webp','cuu-thien-loi-phu':'icon-ngu-loi-phu.webp',
+  'thien-dia-vo-cuc-tran':'icon-cuu-cung-bat-quai.webp','vo-cuc-dan-dien':'icon-cuu-chuyen-kim-dan.webp',
 };
 const SKILL_NAMES = {
   'thiet-quyen':'Thiết Quyền','hoi-khi':'Hồi Khí','than-hanh':'Thần Hành',
@@ -221,6 +227,7 @@ const SKILL_NAMES = {
   'hoa-phu-lien-chau':'Hỏa Phù Liên Châu','dinh-than-phu':'Định Thân Phù','ngu-loi-phu':'Ngũ Lôi Phù Trận','van-phu-trieu-tong':'Vạn Phù Triều Tông',
   'tu-linh-tieu-tran':'Tụ Linh Tiểu Trận','khon-long-tran':'Khốn Long Trận','sat-phat-kiem-tran':'Sát Phạt Kiếm Trận','cuu-cung-bat-quai-tran':'Cửu Cung Bát Quái Trận',
   'hoi-xuan-dan-khi':'Hồi Xuân Đan Khí','thanh-tam-dan':'Thanh Tâm Đan','doc-dan-boc-phat':'Độc Đan Bộc Phát','cuu-chuyen-kim-dan':'Cửu Chuyển Kim Đan',
+  'kiem-y-thong-thien':'Kiếm Ý Thông Thiên','cuu-thien-loi-phu':'Cửu Thiên Lôi Phù','thien-dia-vo-cuc-tran':'Thiên Địa Vô Cực Trận','vo-cuc-dan-dien':'Vô Cực Đan Điển',
 };
 const getSkills = p => {
   const hall = p.hall || 'tap-vu';
@@ -929,10 +936,15 @@ function updateTribulation(p, now) {
   if (tr.wave >= 9 && tr.strikes.length === 0 && now >= tr.nextWave) {
     p.tribulation = null;
     p.trucCo = true; p.level = 10; // Trúc Cơ kỳ
-    p.maxhp += 200; p.hp = p.maxhp; p.maxmp += 100; p.mp = p.maxmp; p.atk += 30; p.def += 15;
+    // Thưởng đột phá mạnh: gấp 3 lần trước
+    p.maxhp += 600; p.hp = p.maxhp; p.maxmp += 250; p.mp = p.maxmp;
+    p.atk += 100; p.def += 50;
     p.titles = p.titles || []; p.titles.push('Trúc Cơ Chân Nhân');
-    broadcast({ t: 'sys', text: `🌟 ${p.name} độ kiếp thành công! Đột phá Trúc Cơ kỳ!` });
+    broadcast({ t: 'sys', text: `🌟 ${p.name} độ kiếp thành công! Đột phá Trúc Cơ kỳ! (+600 HP, +100 Công, mở kỹ năng Trúc Cơ)` });
     broadcastMap(p.map, { t: 'tribend', name: p.name, success: true });
+    // Mở skill Trúc Cơ cho class
+    sendTo(p, { t: 'hallskills', skills: getSkills(p), order: getOrder(p), icons: hallData(p.hall).icons, names: hallData(p.hall).names });
+    sendTo(p, { t: 'sys', text: `✨ Đã mở khóa kỹ năng Trúc Cơ!` });
     sendTo(p, { t: 'me', you: pubPlayer(p) });
     savePlayer(p);
   }

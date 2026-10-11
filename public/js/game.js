@@ -755,7 +755,10 @@ function loop(t) {
       }
       ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(p.name, p.rx, p.ry - 126);
-      if (p.rank && p.rank !== 'tap-vu') { // P3: bậc + Đường trên tên
+      if (p.trucCo) { // Danh hiệu Trúc Cơ
+        ctx.fillStyle = '#ffd94a'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('✦ Trúc Cơ Chân Nhân ✦', p.rx, p.ry - 141);
+      } else if (p.rank && p.rank !== 'tap-vu') { // P3: bậc + Đường trên tên
         ctx.fillStyle = '#9fd8ff'; ctx.font = '10px sans-serif';
         const hn = HALL_NAMES[p.hall] || '';
         ctx.fillText(`${RANKS[p.rank] || ''}${p.hallChosen && hn ? ' · ' + hn : ''}`, p.rx, p.ry - 141);
@@ -775,6 +778,17 @@ function loop(t) {
         // Tia sáng bay lên
         if (Math.random() < 0.25) particles.push({ x: p.rx + (Math.random()-0.5)*50, y: p.ry - 20,
           vx: (Math.random()-0.5)*20, vy: -60 - Math.random()*60, life: 0.8, maxLife: 0.8, color: auraCol, size: 7, dot: true });
+      }
+      // Aura Trúc Cơ: vòng vàng kim
+      if (p.trucCo) {
+        const tp = 1 + Math.sin(walkT * 3 + ph) * 0.1;
+        ctx.strokeStyle = '#ffd94a'; ctx.lineWidth = 2.5; ctx.shadowColor = '#ffd94a'; ctx.shadowBlur = 22;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.ellipse(p.rx, p.ry - 52, 42 * tp, 70 * tp, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+        // Hạt vàng bay lên
+        if (Math.random() < 0.3) particles.push({ x: p.rx + (Math.random()-0.5)*60, y: p.ry - 10,
+          vx: (Math.random()-0.5)*30, vy: -80 - Math.random()*80, life: 1, maxLife: 1, color: '#ffd94a', size: 8, dot: true, glow: true });
       }
     }});
   }
