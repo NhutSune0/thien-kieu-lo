@@ -102,13 +102,20 @@ function closePanels() { document.querySelectorAll('.panel.open').forEach(x => x
 const REALMS = ['Luyện Khí', 'Trúc Cơ', 'Kim Đan', 'Nguyên Anh', 'Hóa Thần', 'Luyện Hư', 'Hợp Thể', 'Đại Thừa', 'Độ Kiếp'];
 function renderGearSlots(me) {
   const slots = ['vu-khi','ao','quan','giay','nhan','day-chuyen'];
-  const names = {'vu-khi':'⚔️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
+  const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
+  const icons = {'vu-khi':'🗡️','ao':'🥋','quan':'👖','giay':'🥾','nhan':'💍','day-chuyen':'📿'};
   const colors = {thuong:'#c0c0c0',tot:'#5f5',hiem:'#5af','cuc-pham':'#c5f'};
-  return '<div style="display:flex;gap:4px;flex-wrap:wrap">' + slots.map(s => {
+  const rarNames = {thuong:'Thường',tot:'Tốt',hiem:'Hiếm','cuc-pham':'Cực Phẩm'};
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' + slots.map(s => {
     const g = (me.gear || {})[s];
-    if (!g) return `<span data-slot="${s}" title="Trống" style="opacity:.3;cursor:pointer">${names[s]}</span>`;
-    return `<span data-unequip="${s}" title="${(colors[g.rarity]||'')}" style="color:${colors[g.rarity]||'#fff'};cursor:pointer">${names[s]}</span>`;
-  }).join('') + '</div>';
+    if (!g) return `<div style="border:1px dashed #3a4a7a;border-radius:6px;padding:6px;text-align:center;opacity:.4">
+      <div style="font-size:22px">${icons[s]}</div><div style="font-size:10px;color:#66708c">${slotNames[s]}</div></div>`;
+    const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'Máu':k==='mp'?'Mana':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
+    return `<div data-unequip="${s}" style="border:2px solid ${colors[g.rarity]};border-radius:6px;padding:6px;text-align:center;cursor:pointer;background:rgba(0,0,0,.3)" title="Bấm để tháo">
+      <div style="font-size:22px">${icons[s]}</div>
+      <div style="font-size:10px;color:${colors[g.rarity]};font-weight:bold">${rarNames[g.rarity]}</div>
+      <div style="font-size:9px;color:#9fb0d8">${statTxt}</div></div>`;
+  }).join('') + '</div><div style="font-size:10px;color:#66708c;margin-top:4px">Bấm vào đồ để tháo ra</div>';
 }
 function renderChar() {
   const me = G().players.get(G().myName); if (!me) return;
@@ -250,6 +257,13 @@ function showDlg(m) {
     const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '🏛️ Chọn Đường';
     b.onclick = () => { openHall(m.halls); };
     btns.appendChild(b);
+  }
+  if (m.canTeleport && m.teleports) { // Dịch chuyển
+    for (const tp of m.teleports) {
+      const b = document.createElement('button'); b.className = 'dlg-btn accept'; b.textContent = '🌀 ' + tp.name;
+      b.onclick = () => { G().send({ t: 'teleport', map: tp.map }); closePanels(); };
+      btns.appendChild(b);
+    }
   }
   const bye = document.createElement('button'); bye.className = 'dlg-btn'; bye.textContent = 'Tạm biệt';
   bye.onclick = closePanels;

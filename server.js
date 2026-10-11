@@ -223,6 +223,7 @@ const NPCS = {
   'lao-tran':     { name: 'Lão Trần',       x: 1700, y: 1500, map: 'tong-mon' },
   'duoc-tran-tu': { name: 'Dược Trần Tử',   x: 2140, y: 1500, map: 'tong-mon' },
   'tieu-ho':      { name: 'Trương Tiểu Hổ', x: 1920, y: 1730, map: 'tong-mon' },
+  'dich-chuyen':  { name: 'Trưởng Lão Dịch Chuyển', x: 1920, y: 2000, map: 'tong-mon', teleport: true },
 };
 
 // ---------- Nhiệm vụ Chương 1 (chuỗi tuyến tính) ----------
@@ -440,6 +441,8 @@ wss.on('connection', ws => {
       basicAttack(p);
     } else if (msg.t === 'tribulate') {
       startTribulation(p);
+    } else if (msg.t === 'teleport') {
+      doTeleport(p, String(msg.map));
     } else if (msg.t === 'equip') {
       const gid = +msg.id; p.bag = p.bag || []; p.gear = p.gear || {};
       const idx = p.bag.findIndex(g => g.id === gid);
@@ -621,7 +624,27 @@ function handleTalk(p, npcId) {
     else if (p.rank === 'ngoai-mon' && !p.hallChosen) hallChoice = true;
   }
   sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept, canTurnin, qid, canPromote: canProm, hallChoice,
-    halls: hallChoice ? HALLS : undefined });
+    halls: hallChoice ? HALLS : undefined,
+    canTeleport: !!npc.teleport, teleports: npc.teleport ? getTeleports(p) : undefined });
+}
+function getTeleports(p) {
+  // Danh sách map dịch chuyển được (kèm yêu cầu cấp)
+  return [
+    { map: 'yeu-thu', name: 'Yêu Thú Sơn Mạch', needLv: 1 },
+    { map: 'hac-phong', name: 'Hắc Phong Lĩnh', needLv: 5 },
+    { map: 'thi-luyen', name: 'Thí Luyện Trường', needLv: 7 },
+    { map: 'loi-kiep', name: 'Lôi Kiếp Đài', needLv: 1 },
+  ].filter(t => p.level >= t.needLv && p.map !== t.map);
+}
+function doTeleport(p, map) {
+  const dest = getTeleports(p).find(t => t.map === map);
+  if (!dest) { sendTo(p, { t: 'err', text: 'Không thể dịch chuyển đến đó!' }); return; }
+  const anchor = MAP_ANCHOR[map] || SPAWN;
+  p.map = map; p.x = anchor.x; p.y = anchor.y;
+  p.moving = false; p.tx = p.ty = null; p.channel = null;
+  sendMapData(p);
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  sendTo(p, { t: 'sys', text: `🌀 Dịch chuyển đến [${MAPS[map].name}]` });
 }
 function acceptQuest(p, qid) {
   const nid = acceptAvailQuest(p);
