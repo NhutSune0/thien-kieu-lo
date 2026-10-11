@@ -206,12 +206,12 @@ const effCrit = p => 15 + (gearStats(p).crit || 0); // % bạo kích (cơ bản 
 
 // ---------- Quái (P1: 3 loại vòng ngoài) ----------
 const MONSTERS = {
-  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 25, map: 'yeu-thu' },
-  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 18, map: 'yeu-thu' },
-  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 12, map: 'yeu-thu' },
+  'hac-mao-thu':  { hp: 35,  dmg: 6,  tv: 25, ltMin: 1, ltMax: 3,  speed: 120, aggro: 230, count: 25, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 1900, y1: 2880 }, lv: '1-3' },
+  'thanh-truc-xa':{ hp: 80,  dmg: 11, tv: 55, ltMin: 3, ltMax: 6,  speed: 145, aggro: 270, count: 18, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 950, y1: 1900 }, lv: '3-5' },
+  'da-hoa-lang':  { hp: 160, dmg: 20, tv: 120, ltMin: 6, ltMax: 12, speed: 165, aggro: 310, count: 12, map: 'yeu-thu', zone: { x0: 0, x1: 3840, y0: 0, y1: 950 }, lv: '5-7' },
   // Hắc Phong Lĩnh: quái mạnh hơn
-  'hac-phong-bao':{ hp: 320, dmg: 32, tv: 220, ltMin: 10, ltMax: 18, speed: 180, aggro: 340, count: 15, map: 'hac-phong' },
-  'am-anh-thu':   { hp: 200, dmg: 24, tv: 150, ltMin: 6, ltMax: 12, speed: 170, aggro: 300, count: 12, map: 'hac-phong' },
+  'am-anh-thu':   { hp: 200, dmg: 24, tv: 150, ltMin: 6, ltMax: 12, speed: 170, aggro: 300, count: 12, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '7-9' },
+  'hac-phong-bao':{ hp: 320, dmg: 32, tv: 220, ltMin: 10, ltMax: 18, speed: 180, aggro: 340, count: 15, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '9-12' },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
@@ -242,7 +242,7 @@ const QUESTS = {
     done: ['Nước Linh Tuyền đây rồi. Vất vả cho con.'] },
   'C1-04': { name: 'Hái Linh Thảo', giver: 'duoc-tran-tu', turnin: 'duoc-tran-tu',
     objectives: [{ type: 'collect', item: 'linh-thao', count: 10, text: 'Hái Linh Thảo tươi' }],
-    reward: { tv: 80, potions: 2, dch: 20 },
+    reward: { tv: 80, potions: 2, dch: 20, gear: 1 },
     offer: ['Đan Đường thiếu Linh Thảo luyện Hồi Khí Đan.', 'Hái 10 gốc tươi về đây. Cẩn thận, có 2 gốc héo đấy!'],
     done: ['Đủ 10 gốc tươi. Tốt lắm!'] },
   'C1-05': { name: 'Bữa Cơm Huynh Đệ', giver: 'tieu-ho', turnin: 'tieu-ho',
@@ -252,7 +252,7 @@ const QUESTS = {
     done: ['Từ nay chúng ta là huynh đệ! (Đã mở Kết bái)'] },
   'C1-06': { name: 'Đêm Yêu Thú', giver: 'lao-tran', turnin: 'lao-tran',
     objectives: [{ type: 'kill', mob: 'thiet-bi-da-tru', count: 1, text: 'Đánh bại Thiết Bì Dã Trư' }],
-    reward: { tv: 300, lt: 20, dch: 100, title: 'Kẻ Sống Sót Đêm Yêu Thú' },
+    reward: { tv: 300, lt: 20, dch: 100, title: 'Kẻ Sống Sót Đêm Yêu Thú', gear: 2 },
     offer: ['Đêm nay có yêu thú lẻn vào Tạp Dịch Viện!', 'Cẩn thận đấy tiểu tử...'],
     done: ['Tiểu tử... thú vị đấy. (Hỗn Độn Linh Căn của con vừa rung động!)'] },
 };
@@ -325,10 +325,14 @@ function spawnMonster(type, map, initial, gx, gy, grp) {
   const cfg = MONSTERS[type];
   map = map || 'yeu-thu';
   const anchor = MAP_ANCHOR[map] || SPAWN;
+  const z = cfg.zone;
+  // Spawn trong vùng cấp độ của loại quái
+  const zx = z ? z.x0 + 100 + Math.random() * (z.x1 - z.x0 - 200) : 200 + Math.random() * (WORLD_W - 400);
+  const zy = z ? z.y0 + 100 + Math.random() * (z.y1 - z.y0 - 200) : 200 + Math.random() * (WORLD_H - 400);
   const m = {
     id: midSeq++, type, cfg, map,
-    x: gx !== undefined ? gx + (Math.random()-0.5)*220 : 200 + Math.random() * (WORLD_W - 400),
-    y: gy !== undefined ? gy + (Math.random()-0.5)*220 : 200 + Math.random() * (WORLD_H - 400),
+    x: gx !== undefined ? gx + (Math.random()-0.5)*220 : zx,
+    y: gy !== undefined ? gy + (Math.random()-0.5)*220 : zy,
     hp: cfg.hp, maxhp: cfg.hp,
     state: 'idle', wx: 0, wy: 0, wt: 0, target: null, atkAt: 0, dead: false, respawnAt: 0,
     stunUntil: 0, slowUntil: 0, slowMul: 1, poisonUntil: 0, poisonMul: 0, poisonBy: null, poisonTick: 0, // P3: choáng/chậm/độc
@@ -632,6 +636,18 @@ function turninQuest(p, qid) {
   if (r.potions) p.potions += r.potions;
   if (r.ketbai) p.ketbai = true;
   if (r.title && !p.titles.includes(r.title)) p.titles.push(r.title);
+  if (r.gear) { // thưởng trang bị
+    p.bag = p.bag || [];
+    for (let i = 0; i < r.gear; i++) {
+      const g = rollGear(p.level);
+      // Quest thưởng đồ Tốt trở lên
+      if (g.rarity === 'thuong') g.rarity = 'tot';
+      const mul = GEAR_RARITY[g.rarity].mul * (1 + p.level * 0.08);
+      for (const k of Object.keys(g.stats)) g.stats[k] = Math.round(GEAR_BASE[g.slot][k] * mul);
+      p.bag.push(g);
+    }
+    sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
+  }
   if (qid === 'C1-03') p.carrying = false;
   p.quests.done.push(qid);
   p.quests.active = null;
@@ -1111,7 +1127,14 @@ setInterval(() => {
     const spdMul = now < m.slowUntil ? (m.slowMul || 0.5) : 1; // P3: làm chậm
     if (m.state === 'idle') {
       m.wt -= dt;
-      if (m.wt <= 0) { m.wx = m.x + (Math.random()-0.5)*300; m.wy = m.y + (Math.random()-0.5)*300; m.wt = 2 + Math.random()*3; }
+      if (m.wt <= 0) {
+        const wz = m.cfg.zone;
+        if (wz) { // lang thang trong vùng cấp độ
+          m.wx = wz.x0 + 100 + Math.random() * (wz.x1 - wz.x0 - 200);
+          m.wy = wz.y0 + 100 + Math.random() * (wz.y1 - wz.y0 - 200);
+        } else { m.wx = m.x + (Math.random()-0.5)*300; m.wy = m.y + (Math.random()-0.5)*300; }
+        m.wt = 2 + Math.random()*3;
+      }
       const dx = m.wx - m.x, dy = m.wy - m.y, d = Math.hypot(dx, dy);
       if (d > 5) {
         let sx = dx / d, sy = dy / d;
@@ -1131,6 +1154,11 @@ setInterval(() => {
     } else if (m.state === 'chase') {
       const t = m.target;
       if (!t || t.dead || dist(m, t) > m.cfg.aggro * 1.6) { m.state = 'idle'; m.target = null; continue; }
+      // Leash: đuổi quá xa vùng cấp độ thì bỏ về
+      const zz = m.cfg.zone;
+      if (zz && (m.x < zz.x0 - 200 || m.x > zz.x1 + 200 || m.y < zz.y0 - 200 || m.y > zz.y1 + 200)) {
+        m.state = 'idle'; m.target = null; m.hp = m.maxhp; continue; // về vùng + hồi đầy máu
+      }
       const d = dist(m, t);
       if (d < 48) {
         if (!m.windupAt && now - m.atkAt > 1000) m.windupAt = now; // giơ vuốt 0.5s — client vẽ vòng đỏ cảnh báo
@@ -1157,7 +1185,7 @@ setInterval(() => {
       ps: [...players.values()].filter(q => q.map === pl.map).map(pubPlayer),
       ms: [...monsters.values()].filter(m => !m.dead && m.map === pl.map)
         .map(m => ({ id: m.id, type: m.type, x: Math.round(m.x), y: Math.round(m.y), hp: Math.ceil(m.hp), maxhp: m.maxhp,
-          stun: now < m.stunUntil, slow: now < m.slowUntil, windup: !!m.windupAt })),
+          lv: m.cfg.lv || '', stun: now < m.stunUntil, slow: now < m.slowUntil, windup: !!m.windupAt })),
     };
     ws.send(JSON.stringify(snap));
   }
