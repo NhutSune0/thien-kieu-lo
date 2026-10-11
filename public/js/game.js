@@ -728,7 +728,11 @@ function loop(t) {
       const ph = p.name.charCodeAt(0) || 0;
       const now = performance.now();
       shadow(p.rx, p.ry, 26);
-      if (p.gender === 'nu') ctx.filter = 'hue-rotate(140deg) saturate(1.2)'; // nữ: áo hồng
+      const isFemale = p.gender === 'nu';
+      if (isFemale) {
+        // Nữ: hồng đậm rõ rệt
+        ctx.filter = 'hue-rotate(150deg) saturate(1.8) brightness(1.1)';
+      }
       const aEnd = atkAnim.get(p.name) || 0, cEnd = castAnim.get(p.name) || 0;
       if (cEnd > now) {            // vận công tung skill
         const fr = Math.min(3, Math.floor((520 - (cEnd - now)) / 100));
@@ -754,7 +758,8 @@ function loop(t) {
         ctx.beginPath(); ctx.arc(p.rx, p.ry - 60, 26, -Math.PI/2, -Math.PI/2 + Math.max(0, Math.min(1, pr)) * Math.PI*2); ctx.stroke();
       }
       ctx.fillStyle = isMe ? '#7dff9a' : '#fff'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(p.name, p.rx, p.ry - 126);
+      const genderIcon = p.gender === 'nu' ? ' ♀' : ' ♂';
+      ctx.fillText(p.name + genderIcon, p.rx, p.ry - 126);
       if (p.trucCo) { // Danh hiệu Trúc Cơ
         ctx.fillStyle = '#ffd94a'; ctx.font = 'bold 11px sans-serif';
         ctx.fillText('✦ Trúc Cơ Chân Nhân ✦', p.rx, p.ry - 141);
