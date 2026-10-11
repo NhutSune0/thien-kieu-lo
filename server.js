@@ -24,6 +24,7 @@ const MAPS = {
   'hac-phong': { name: 'Hắc Phong Lĩnh' },
   'thi-luyen': { name: 'Thí Luyện Trường' },
   'loi-kiep': { name: 'Lôi Kiếp Đài' },
+  'linh-mach': { name: 'Linh Mạch Cổ Địa' }, // Map Trúc Cơ (cấp 10+)
 };
 const PORTALS = [
   { id: 'to-yeuthu',  from: 'tong-mon', x: 1920, y: 2620, to: 'yeu-thu',  tx: 1920, ty: 2380, label: 'Yêu Thú Sơn Mạch' },
@@ -35,7 +36,7 @@ const PORTALS = [
   { id: 'to-loikiep', from: 'tong-mon', x: 400, y: 1400, to: 'loi-kiep', tx: 1920, ty: 2500, label: 'Lôi Kiếp Đài' },
   { id: 'to-tongmon3', from: 'loi-kiep', x: 1920, y: 2620, to: 'tong-mon', tx: 400, ty: 1400, label: 'Thanh Huyền Tông' },
 ];
-const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 }, 'loi-kiep': { x: 1920, y: 2500 } };
+const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 }, 'loi-kiep': { x: 1920, y: 2500 }, 'linh-mach': { x: 1920, y: 2500 } };
 // Vật cản lớn mỗi map (x, y, r) — quái né khi di chuyển (hồ nước, đá lớn, cây đổ)
 const OBSTACLES = {
   'yeu-thu': [
@@ -266,6 +267,9 @@ const MONSTERS = {
   'hac-phong-bao':{ hp: 320, dmg: 32, tv: 220, ltMin: 10, ltMax: 18, speed: 180, aggro: 340, count: 25, map: 'hac-phong', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '9-12' },
   // Quái độ kiếp: chỉ spawn khi độ kiếp ở Lôi Kiếp Đài
   'loi-kiep-thu':  { hp: 500, dmg: 40, tv: 0, ltMin: 20, ltMax: 40, speed: 190, aggro: 9999, count: 0, map: 'loi-kiep', lv: '9' },
+  // Linh Mạch Cổ Địa: quái Trúc Cơ (cấp 10-15)
+  'co-dia-thu':    { hp: 800, dmg: 60, tv: 400, ltMin: 15, ltMax: 25, speed: 185, aggro: 350, count: 18, map: 'linh-mach', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '10-12' },
+  'linh-mach-yeu': { hp: 1200, dmg: 85, tv: 650, ltMin: 25, ltMax: 40, speed: 195, aggro: 380, count: 15, map: 'linh-mach', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '12-15' },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
@@ -384,6 +388,24 @@ function savePlayer(p) {
 }
 function deletePlayer(name) {
   try { fs.unlinkSync(path.join(SAVE_DIR, name + '.json')); } catch(e) {}
+}
+// Giá bán trang bị theo phẩm chất và cường hóa
+function sellPrice(g) {
+  const base = { thuong: 30, tot: 80, hiem: 200, 'cuc-pham': 500 }[g.rarity] || 30;
+  return Math.round(base * (1 + (g.plus || 0) * 0.5));
+}
+function doSell(p, gid) {
+  p.bag = p.bag || [];
+  const idx = p.bag.findIndex(g => g.id === gid);
+  if (idx < 0) { sendTo(p, { t: 'err', text: 'Không tìm thấy trang bị!' }); return; }
+  const g = p.bag[idx];
+  const price = sellPrice(g);
+  p.bag.splice(idx, 1);
+  p.lt += price;
+  sendTo(p, { t: 'sys', text: `💰 Đã bán ${GEAR_SLOTS[g.slot]} [${GEAR_RARITY[g.rarity].name}] +${price} linh thạch` });
+  sendTo(p, { t: 'gearupdate', bag: p.bag, gear: p.gear });
+  sendTo(p, { t: 'me', you: pubPlayer(p) });
+  savePlayer(p);
 }
 
 let grpSeq = 1; // id bầy quái
@@ -534,6 +556,8 @@ wss.on('connection', ws => {
       broadcast({ t: 'leave', name: p.name });
       try { ws.close(); } catch(e) {}
       return;
+    } else if (msg.t === 'sell') {
+      doSell(p, +msg.id);
     } else if (msg.t === 'chat') {
       const now = Date.now();
       if (now - (p.lastChat || 0) < 2000) return; // chống spam
@@ -678,6 +702,7 @@ function getTeleports(p) {
     { map: 'hac-phong', name: 'Hắc Phong Lĩnh', needLv: 5 },
     { map: 'thi-luyen', name: 'Thí Luyện Trường', needLv: 7 },
     { map: 'loi-kiep', name: 'Lôi Kiếp Đài', needLv: 1 },
+    { map: 'linh-mach', name: 'Linh Mạch Cổ Địa (Trúc Cơ)', needLv: 10 },
   ].filter(t => p.level >= t.needLv && p.map !== t.map);
 }
 function doTeleport(p, map) {

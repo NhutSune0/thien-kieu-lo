@@ -98,7 +98,8 @@ const NPC_PORTRAIT = { 'chap-su-ly': 'assets/npc-chap-su-ly.webp', 'lao-tran': '
 const IT_EMOJI = { 'la': '🍂', 'linh-thao': '🌿', 'linh-thao-heo': '🥀', 'gieng': '⛲' };
 const ICONS = { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp','van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp' };
 const MOB_IMG = { 'hac-mao-thu':'m_hac', 'thanh-truc-xa':'m_xa', 'da-hoa-lang':'m_lang', 'thiet-bi-da-tru':'m_boss',
-  'am-anh-thu':'m_hac', 'hac-phong-bao':'m_lang', 'hac-phong-lao-yeu':'m_boss', 'loi-kiep-thu':'m_boss' };
+  'am-anh-thu':'m_hac', 'hac-phong-bao':'m_lang', 'hac-phong-lao-yeu':'m_boss', 'loi-kiep-thu':'m_boss',
+  'co-dia-thu':'m_lang', 'linh-mach-yeu':'m_boss' };
 const SKILL_NAMES = { 'linh-kiem-tram':'Linh Kiếm Trảm','cuu-loi-kiem':'Cửu Lôi Kiếm Quyết','phan-thien-kiem':'Phần Thiên Kiếm','van-kiem-quy-tong':'Vạn Kiếm Quy Tông','hon-don-kim-chung':'Hỗn Độn Kim Chung','khai-thien-nhat-kiem':'Khai Thiên Nhất Kiếm' };
 // P3: bậc + Đường (server gửi id, client dịch tên)
 const RANKS = { 'tap-vu':'Tạp Vụ','ngoai-mon':'Ngoại Môn','noi-mon':'Nội Môn','hac-tam':'Hạch Tâm','chan-truyen':'Chân Truyền','thien-kieu':'Thiên Kiêu' };
@@ -343,16 +344,19 @@ function spawnFx(m) {
     }
   } else if (m.kind === 'aoe' || m.kind === 'rain') { // nổ vùng: kiếm / phù / trận / đan hỏa
     const vis = m.vis || 'sword';
-    const n = m.kind === 'rain' ? (sid === 'van-phu-trieu-tong' ? 52 : 34) : 18;
+    const n = m.kind === 'rain' ? (sid === 'van-phu-trieu-tong' ? 70 : 45) : 28; // tăng số hạt
     const col = vis === 'talisman' ? '#ff9d3d' : vis === 'formation' ? '#6adce8' : vis === 'danfire' ? '#3ddc74'
       : (sid === 'cuu-loi-kiem' ? '#c07dff' : '#ff7a3d');
     for (let i = 0; i < n; i++) {
       const a = Math.random()*Math.PI*2, rr = Math.random()*(m.r||120);
       const sx = m.x + Math.cos(a)*rr, sy = m.y + Math.sin(a)*rr - 300;
-      if (vis === 'talisman') particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: '#ffd94a', size: 36, tali: true });
-      else if (vis === 'danfire') particles.push({ x: m.x + (Math.random()-0.5)*(m.r||120)*1.4, y: m.y - Math.random()*60, vx: (Math.random()-0.5)*120, vy: -60 - Math.random()*120, ang: 0, life: 0.7, maxLife: 0.7, color: Math.random()<0.5?'#7dff9a':'#3ddc74', size: 12, dot: true });
-      else particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: col, size: 36, spin: 0, trail: true });
+      if (vis === 'talisman') particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: '#ffd94a', size: 42, tali: true });
+      else if (vis === 'danfire') particles.push({ x: m.x + (Math.random()-0.5)*(m.r||120)*1.4, y: m.y - Math.random()*60, vx: (Math.random()-0.5)*120, vy: -60 - Math.random()*120, ang: 0, life: 0.7, maxLife: 0.7, color: Math.random()<0.5?'#7dff9a':'#3ddc74', size: 14, dot: true, glow: true });
+      else particles.push({ x: sx, y: sy, vx: (Math.random()-0.5)*60, vy: 900 + Math.random()*300, ang: Math.PI/2.3, life: 0.6, maxLife: 0.6, color: col, size: 42, spin: 0, trail: true });
     }
+    // Thêm shockwave cho mọi AoE
+    fxAnims.push({ kind: 'shock', x: m.x, y: m.y, life: 0.5, maxLife: 0.5, color: col });
+    if (UI.settings.shake) shake = Math.max(shake, 8);
     if (sid === 'cuu-loi-kiem') { // Cửu Lôi: 5 luồng sét tím đánh xuống
       for (let i = 0; i < 5; i++) fxAnims.push({ kind: 'bolt', x: m.x + (Math.random()-0.5)*(m.r||120)*1.6, y: m.y, life: 0.28, color: '#c07dff' });
       SFX.skill(); if (UI.settings.shake) shake = Math.max(shake, 10);

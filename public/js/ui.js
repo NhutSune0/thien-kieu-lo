@@ -185,9 +185,18 @@ function renderChar() {
     if (confirm('Bắt đầu độ Cửu Cửu Lôi Kiếp? 9 đợt sét, nguy hiểm!')) G().send({ t: 'tribulate' });
   };
 }
+let bagFilter = 'all'; // all, vu-khi, ao, quan, giay, nhan, day-chuyen, thuong, tot, hiem, cuc-pham
 function renderBag() {
   const me = G().players.get(G().myName); if (!me) return;
-  const bag = me.bag || [];
+  let bag = me.bag || [];
+  // Lọc theo bộ lọc đang chọn
+  if (bagFilter !== 'all') {
+    if (['vu-khi','ao','quan','giay','nhan','day-chuyen'].includes(bagFilter)) {
+      bag = bag.filter(g => g.slot === bagFilter);
+    } else {
+      bag = bag.filter(g => g.rarity === bagFilter);
+    }
+  }
   const icons = {'vu-khi':'gear-vu-khi.webp','ao':'gear-ao.webp','quan':'gear-quan.webp','giay':'gear-giay.webp','nhan':'gear-nhan.webp','day-chuyen':'gear-day-chuyen.webp'};
   const slotNames = {'vu-khi':'Vũ Khí','ao':'Áo','quan':'Quần','giay':'Giày','nhan':'Nhẫn','day-chuyen':'Dây Chuyền'};
   const colors = {thuong:'#8a8a8a',tot:'#2ecc71',hiem:'#3498db','cuc-pham':'#9b59b6'};
@@ -196,12 +205,16 @@ function renderBag() {
   let gearHtml = '';
   for (const g of bag) {
     const statTxt = Object.entries(g.stats).map(([k,v]) => `${k==='atk'?'Công':k==='def'?'Thủ':k==='hp'?'HP':k==='mp'?'MP':k==='crit'?'Bạo':k==='spd'?'Tốc':k}+${v}`).join(' ');
-    gearHtml += `<div class="bag-gear" data-equip="${g.id}" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}">
+    const sellP = Math.round(({thuong:30,tot:80,hiem:200,'cuc-pham':500})[g.rarity] * (1 + (g.plus||0)*0.5));
+    gearHtml += `<div class="bag-gear" style="border-color:${colors[g.rarity]};background:${bgColors[g.rarity]}">
       <div class="gear-icon"><img src="assets/${icons[g.slot]}" alt=""></div>
-      <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}</div>
+      <div class="gear-rar" style="color:${colors[g.rarity]}">${rarNames[g.rarity]}${g.plus?` +${g.plus}`:''}</div>
       <div class="gear-slotname">${slotNames[g.slot] || g.slot}</div>
       <div class="gear-stats">${statTxt}</div>
-      <div class="gear-act">Bấm để mặc</div></div>`;
+      <div class="gear-btns">
+        <button data-equip="${g.id}" class="wear-btn">Mặc</button>
+        <button data-sell="${g.id}" class="sell-btn">Bán ${sellP}💎</button>
+      </div></div>`;
   }
   document.getElementById('bag-body').innerHTML = `
     <div class="bag-top">
@@ -212,10 +225,29 @@ function renderBag() {
         <div class="nm">Linh thạch<small>${fmt(me.lt)} viên</small></div></div>
     </div>
     <div class="char-section">🎒 Trang bị trong túi (${bag.length})</div>
+    <div class="bag-filters">
+      <button data-filter="all" class="${bagFilter==='all'?'active':''}">Tất cả</button>
+      <button data-filter="vu-khi" class="${bagFilter==='vu-khi'?'active':''}">🗡️</button>
+      <button data-filter="ao" class="${bagFilter==='ao'?'active':''}">🥋</button>
+      <button data-filter="thuong" class="${bagFilter==='thuong'?'active':''}" style="color:#8a8a8a">Thường</button>
+      <button data-filter="tot" class="${bagFilter==='tot'?'active':''}" style="color:#2ecc71">Tốt</button>
+      <button data-filter="hiem" class="${bagFilter==='hiem'?'active':''}" style="color:#3498db">Hiếm</button>
+      <button data-filter="cuc-pham" class="${bagFilter==='cuc-pham'?'active':''}" style="color:#9b59b6">Cực Phẩm</button>
+    </div>
     ${gearHtml ? `<div class="bag-grid">${gearHtml}</div>` : '<div class="bag-empty">Chưa có trang bị — đi đánh quái để rớt đồ.</div>'}`;
   document.querySelector('#bag-body [data-drink]').onclick = () => { G().send({ t: 'potion' }); setTimeout(renderBag, 300); };
-  document.querySelectorAll('#bag-body [data-equip]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#bag-body [data-equip]').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
     G().send({ t: 'equip', id: b.dataset.equip }); setTimeout(() => { renderBag(); renderChar(); }, 300);
+  });
+  document.querySelectorAll('#bag-body [data-sell]').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    if (confirm('Bán trang bị này?')) {
+      G().send({ t: 'sell', id: b.dataset.sell }); setTimeout(renderBag, 300);
+    }
+  });
+  document.querySelectorAll('#bag-body [data-filter]').forEach(b => b.onclick = () => {
+    bagFilter = b.dataset.filter; renderBag();
   });
 }
 const settings = { sound: true, shake: true };
