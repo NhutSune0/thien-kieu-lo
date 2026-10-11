@@ -79,40 +79,48 @@ const RANKS = {
 };
 // vis: theme hình ảnh hiệu ứng — 'sword' phi kiếm, 'talisman' phù bay, 'formation' bát quái, 'danfire' đan hỏa
 const HALL_SKILLS = {
+  // Tạp Vụ: skill cơ bản, mở dần theo cấp
+  'tap-vu': {
+    'thiet-quyen': { cd: 3, mp: 8,  range: 120, dmgMul: 1.4, kind: 'bolt', targets: 1, vis: 'fist', unlockLv: 1 },
+    'hoi-khi':     { cd: 12, mp: 15, kind: 'heal', healMul: 0.25, vis: 'heal', unlockLv: 2 },
+    'than-hanh':   { cd: 20, mp: 15, kind: 'buff', spdMul: 1.4, spdDur: 8, vis: 'wind', unlockLv: 3 },
+  },
   'kiem-cac': {
-    'linh-kiem-tram':      { cd: 3,  mp: 10, range: 430, dmgMul: 1.6, kind: 'bolt',   targets: 1, vis: 'sword' },
-    'cuu-loi-kiem':        { cd: 8,  mp: 25, range: 390, dmgMul: 2.2, kind: 'aoe',    targets: 3, vis: 'sword' },
-    'phan-thien-kiem':     { cd: 10, mp: 30, range: 350, dmgMul: 2.8, kind: 'aoe',    radius: 140, vis: 'sword' },
-    'van-kiem-quy-tong':   { cd: 15, mp: 45, range: 300, dmgMul: 3.2, kind: 'nova',    radius: 230, vis: 'sword' },
-    'hon-don-kim-chung':   { cd: 20, mp: 40, range: 0,   dmgMul: 0,   kind: 'shield',  dur: 6, vis: 'sword' },
-    'khai-thien-nhat-kiem':{ cd: 60, mp: 80, range: 540, dmgMul: 8.0, kind: 'line',    width: 130, vis: 'sword' },
+    'linh-kiem-tram':      { cd: 3,  mp: 10, range: 430, dmgMul: 1.6, kind: 'bolt',   targets: 1, vis: 'sword', unlockLv: 5 },
+    'cuu-loi-kiem':        { cd: 8,  mp: 25, range: 390, dmgMul: 2.2, kind: 'aoe',    targets: 3, vis: 'sword', unlockLv: 6 },
+    'phan-thien-kiem':     { cd: 10, mp: 30, range: 350, dmgMul: 2.8, kind: 'aoe',    radius: 140, vis: 'sword', unlockLv: 7 },
+    'van-kiem-quy-tong':   { cd: 15, mp: 45, range: 300, dmgMul: 3.2, kind: 'nova',    radius: 230, vis: 'sword', unlockLv: 8 },
+    'hon-don-kim-chung':   { cd: 20, mp: 40, range: 0,   dmgMul: 0,   kind: 'shield',  dur: 6, vis: 'sword', unlockLv: 9 },
+    'khai-thien-nhat-kiem':{ cd: 60, mp: 80, range: 540, dmgMul: 8.0, kind: 'line',    width: 130, vis: 'sword', unlockLv: 10 },
   },
   'than-phu': {
-    'hoa-phu-lien-chau': { cd: 3,  mp: 10, range: 430, dmgMul: 1.5, kind: 'bolt', targets: 3, vis: 'talisman' },
-    'dinh-than-phu':     { cd: 8,  mp: 20, range: 380, dmgMul: 0.8, kind: 'stun', targets: 1, stunDur: 3, vis: 'talisman' },
-    'ngu-loi-phu':       { cd: 12, mp: 30, range: 360, dmgMul: 2.6, kind: 'aoe',  targets: 5, vis: 'talisman' },
-    'van-phu-trieu-tong':{ cd: 60, mp: 70, range: 420, dmgMul: 7.0, kind: 'rain', targets: 8, radius: 200, vis: 'talisman' },
+    'hoa-phu-lien-chau': { cd: 3,  mp: 10, range: 430, dmgMul: 1.5, kind: 'bolt', targets: 3, vis: 'talisman', unlockLv: 5 },
+    'dinh-than-phu':     { cd: 8,  mp: 20, range: 380, dmgMul: 0.8, kind: 'stun', targets: 1, stunDur: 3, vis: 'talisman', unlockLv: 6 },
+    'ngu-loi-phu':       { cd: 12, mp: 30, range: 360, dmgMul: 2.6, kind: 'aoe',  targets: 5, vis: 'talisman', unlockLv: 7 },
+    'van-phu-trieu-tong':{ cd: 60, mp: 70, range: 420, dmgMul: 7.0, kind: 'rain', targets: 8, radius: 200, vis: 'talisman', unlockLv: 8 },
   },
   'tran-su': {
-    'tu-linh-tieu-tran':     { cd: 3,  mp: 10, range: 400, kind: 'zone', radius: 110, dur: 5, tickMul: 0.8, vis: 'formation' },
-    'khon-long-tran':        { cd: 10, mp: 25, range: 380, kind: 'zone', radius: 130, dur: 4, tickMul: 0.5, slowMul: 0.4, slowDur: 4, stunDur: 2, vis: 'formation' },
-    'sat-phat-kiem-tran':    { cd: 15, mp: 35, range: 350, dmgMul: 3.0, kind: 'aoe', targets: 5, vis: 'formation' },
-    'cuu-cung-bat-quai-tran':{ cd: 60, mp: 70, range: 320, dmgMul: 6.0, kind: 'nova', radius: 280, slowMul: 0.5, slowDur: 4, vis: 'formation' },
+    'tu-linh-tieu-tran':     { cd: 3,  mp: 10, range: 400, kind: 'zone', radius: 110, dur: 5, tickMul: 0.8, vis: 'formation', unlockLv: 5 },
+    'khon-long-tran':        { cd: 10, mp: 25, range: 380, kind: 'zone', radius: 130, dur: 4, tickMul: 0.5, slowMul: 0.4, slowDur: 4, stunDur: 2, vis: 'formation', unlockLv: 6 },
+    'sat-phat-kiem-tran':    { cd: 15, mp: 35, range: 350, dmgMul: 3.0, kind: 'aoe', targets: 5, vis: 'formation', unlockLv: 7 },
+    'cuu-cung-bat-quai-tran':{ cd: 60, mp: 70, range: 320, dmgMul: 6.0, kind: 'nova', radius: 280, slowMul: 0.5, slowDur: 4, vis: 'formation', unlockLv: 8 },
   },
   'duoc-vuong': {
-    'hoi-xuan-dan-khi':  { cd: 3,  mp: 10, kind: 'heal', healMul: 0.3, vis: 'danfire' },
-    'thanh-tam-dan':     { cd: 10, mp: 20, kind: 'shield', dur: 6, healMul: 0.15, vis: 'danfire' },
-    'doc-dan-boc-phat':  { cd: 12, mp: 30, range: 360, dmgMul: 2.4, kind: 'aoe', targets: 4, poisonDur: 5, poisonMul: 0.3, vis: 'danfire' },
-    'cuu-chuyen-kim-dan':{ cd: 60, mp: 70, kind: 'heal', healMul: 0.8, atkBuffMul: 1.3, atkBuffDur: 10, vis: 'danfire' },
+    'hoi-xuan-dan-khi':  { cd: 3,  mp: 10, kind: 'heal', healMul: 0.3, vis: 'danfire', unlockLv: 5 },
+    'thanh-tam-dan':     { cd: 10, mp: 20, kind: 'shield', dur: 6, healMul: 0.15, vis: 'danfire', unlockLv: 6 },
+    'doc-dan-boc-phat':  { cd: 12, mp: 30, range: 360, dmgMul: 2.4, kind: 'aoe', targets: 4, poisonDur: 5, poisonMul: 0.3, vis: 'danfire', unlockLv: 7 },
+    'cuu-chuyen-kim-dan':{ cd: 60, mp: 70, kind: 'heal', healMul: 0.8, atkBuffMul: 1.3, atkBuffDur: 10, vis: 'danfire', unlockLv: 8 },
   },
 };
 const HALL_ORDERS = {
+  'tap-vu': ['thiet-quyen','hoi-khi','than-hanh'],
   'kiem-cac': ['linh-kiem-tram','cuu-loi-kiem','phan-thien-kiem','van-kiem-quy-tong','hon-don-kim-chung','khai-thien-nhat-kiem'],
   'than-phu': ['hoa-phu-lien-chau','dinh-than-phu','ngu-loi-phu','van-phu-trieu-tong'],
   'tran-su': ['tu-linh-tieu-tran','khon-long-tran','sat-phat-kiem-tran','cuu-cung-bat-quai-tran'],
   'duoc-vuong': ['hoi-xuan-dan-khi','thanh-tam-dan','doc-dan-boc-phat','cuu-chuyen-kim-dan'],
 };
 const HALL_ICONS = {
+  'thiet-quyen':'icon-thiet-quyen.webp','hoi-khi':'icon-hoi-khi.webp','than-hanh':'icon-than-hanh.webp',
   'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp',
   'van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp',
   'hoa-phu-lien-chau':'icon-hoa-phu-lien-chau.webp','dinh-than-phu':'icon-dinh-than-phu.webp',
@@ -123,16 +131,31 @@ const HALL_ICONS = {
   'doc-dan-boc-phat':'icon-doc-dan-boc-phat.webp','cuu-chuyen-kim-dan':'icon-cuu-chuyen-kim-dan.webp',
 };
 const SKILL_NAMES = {
+  'thiet-quyen':'Thiết Quyền','hoi-khi':'Hồi Khí','than-hanh':'Thần Hành',
   'linh-kiem-tram':'Linh Kiếm Trảm','cuu-loi-kiem':'Cửu Lôi Kiếm Quyết','phan-thien-kiem':'Phần Thiên Kiếm',
   'van-kiem-quy-tong':'Vạn Kiếm Quy Tông','hon-don-kim-chung':'Hỗn Độn Kim Chung','khai-thien-nhat-kiem':'Khai Thiên Nhất Kiếm',
   'hoa-phu-lien-chau':'Hỏa Phù Liên Châu','dinh-than-phu':'Định Thân Phù','ngu-loi-phu':'Ngũ Lôi Phù Trận','van-phu-trieu-tong':'Vạn Phù Triều Tông',
   'tu-linh-tieu-tran':'Tụ Linh Tiểu Trận','khon-long-tran':'Khốn Long Trận','sat-phat-kiem-tran':'Sát Phạt Kiếm Trận','cuu-cung-bat-quai-tran':'Cửu Cung Bát Quái Trận',
   'hoi-xuan-dan-khi':'Hồi Xuân Đan Khí','thanh-tam-dan':'Thanh Tâm Đan','doc-dan-boc-phat':'Độc Đan Bộc Phát','cuu-chuyen-kim-dan':'Cửu Chuyển Kim Đan',
 };
-const getSkills = p => HALL_SKILLS[p.hall] || HALL_SKILLS['kiem-cac'];
-const getOrder = p => HALL_ORDERS[p.hall] || HALL_ORDERS['kiem-cac'];
+const getSkills = p => {
+  const hall = p.hall || 'tap-vu';
+  const all = HALL_SKILLS[hall] || HALL_SKILLS['tap-vu'];
+  // Chỉ trả skill đã mở khóa theo cấp
+  const unlocked = {};
+  for (const [id, s] of Object.entries(all)) {
+    if ((s.unlockLv || 1) <= p.level) unlocked[id] = s;
+  }
+  return unlocked;
+};
+const getOrder = p => {
+  const hall = p.hall || 'tap-vu';
+  const order = HALL_ORDERS[hall] || HALL_ORDERS['tap-vu'];
+  const skills = getSkills(p);
+  return order.filter(id => skills[id]); // chỉ hiện skill đã mở
+};
 function hallData(hall) { // icons + names gửi client cho 1 Đường
-  const h = HALL_ORDERS[hall] || HALL_ORDERS['kiem-cac'];
+  const h = HALL_ORDERS[hall] || HALL_ORDERS['tap-vu'];
   const icons = {}, names = {};
   for (const id of h) { icons[id] = HALL_ICONS[id]; names[id] = SKILL_NAMES[id]; }
   return { icons, names };
@@ -231,7 +254,7 @@ let zidSeq = 1;
 
 function newPlayerState(name) {
   return {
-    name, hall: 'kiem-cac', map: 'tong-mon', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
+    name, hall: null, map: 'tong-mon', x: WORLD_W/2, y: WORLD_H/2, dir: 0,
     tx: null, ty: null, moving: false,
     level: 1, tv: 0, hp: 120, maxhp: 120, mp: 80, maxmp: 80,
     atk: 24, def: 8, lt: 20, potions: 3,
@@ -392,7 +415,7 @@ function pubPlayer(p) {
     level: p.level, tv: p.tv, tvNeed: tvNeed(p.level), lt: p.lt, potions: p.potions,
     atk: p.atk, def: p.def || 8,
     dch: p.dch || 0, titles: p.titles || [], ketbai: !!p.ketbai, qm: npcMarkers(p),
-    rank: p.rank || 'tap-vu', hall: p.hall || 'kiem-cac', hallChosen: !!p.hallChosen,
+    rank: p.rank || 'tap-vu', hall: p.hall || null, hallChosen: !!p.hallChosen,
     moving: p.moving, dead: p.dead, shield: Date.now() < p.shieldUntil };
 }
 function broadcast(msg, except) {
@@ -557,7 +580,7 @@ function joinHall(p, hall) {
   p.hall = hall; p.hallChosen = true; p.cds = {};
   savePlayer(p); // lưu ngay — tránh mất khi server restart trước autosave
   const hd = hallData(hall);
-  sendTo(p, { t: 'hallskills', skills: HALL_SKILLS[hall], order: HALL_ORDERS[hall], icons: hd.icons, names: hd.names });
+  sendTo(p, { t: 'hallskills', skills: getSkills(p), order: getOrder(p), icons: hd.icons, names: hd.names });
   sendTo(p, { t: 'me', you: pubPlayer(p) });
   broadcast({ t: 'sys', text: `🏛️ ${p.name} đã gia nhập ${HALLS[hall].icon} ${HALLS[hall].name}!` });
 }
@@ -678,6 +701,17 @@ function gainTv(p, amount) {
     p.tv -= tvNeed(p.level); p.level++;
     p.maxhp += 30; p.hp = p.maxhp; p.maxmp += 15; p.mp = p.maxmp; p.atk += 4;
     broadcast({ t: 'sys', text: `🎉 ${p.name} đột phá Luyện Khí tầng ${p.level}!` });
+    // Kiểm tra skill mới mở khóa
+    const hall = p.hall || 'tap-vu';
+    const order = HALL_ORDERS[hall] || HALL_ORDERS['tap-vu'];
+    for (const sid of order) {
+      const sk = HALL_SKILLS[hall][sid];
+      if (sk && sk.unlockLv === p.level) {
+        sendTo(p, { t: 'sys', text: `✨ Mở khóa kỹ năng mới: ${SKILL_NAMES[sid]}!` });
+        sendTo(p, { t: 'hallskills', skills: getSkills(p), order: getOrder(p), icons: hallData(hall).icons, names: hallData(hall).names });
+        break;
+      }
+    }
   }
   sendTo(p, { t: 'me', you: pubPlayer(p) });
 }
@@ -714,6 +748,13 @@ function castSkill(p, id) {
       broadcastMap(p.map, { t: 'healnum', x: Math.round(p.x), y: Math.round(p.y), txt: '+' + amt });
     }
     fxm({ t: 'fx', kind: 'shield', id, x: Math.round(p.x), y: Math.round(p.y), dur: s.dur });
+    sendTo(p, { t: 'me', you: pubPlayer(p) });
+    return;
+  }
+  if (s.kind === 'buff') {
+    if (s.spdMul) { p.spdBuffMul = s.spdMul; p.spdBuffUntil = now + s.spdDur * 1000; }
+    fxm({ t: 'fx', kind: 'buff', id, x: Math.round(p.x), y: Math.round(p.y) });
+    if (s.spdMul) sendTo(p, { t: 'sys', text: `💨 Thần Hành: tốc độ di chuyển +${Math.round((s.spdMul-1)*100)}% trong ${s.spdDur}s!` });
     sendTo(p, { t: 'me', you: pubPlayer(p) });
     return;
   }
@@ -820,7 +861,8 @@ setInterval(() => {
     }
     if (p.moving && p.tx !== null) {
       const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
-      const step = PLAYER_SPEED * (p.carrying ? 0.55 : 1) * dt; // gánh nước đi chậm
+      const spdBuff = Date.now() < (p.spdBuffUntil || 0) ? (p.spdBuffMul || 1) : 1;
+      const step = PLAYER_SPEED * (p.carrying ? 0.55 : 1) * spdBuff * dt; // gánh nước đi chậm, Thần Hành tăng tốc
       if (d <= step + 2) { p.x = p.tx; p.y = p.ty; p.moving = false; p.tx = p.ty = null; }
       else { p.x += dx / d * step; p.y += dy / d * step; }
     }

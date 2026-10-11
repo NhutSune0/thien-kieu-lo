@@ -104,8 +104,8 @@ function renderChar() {
   const me = G().players.get(G().myName); if (!me) return;
   const realm = REALMS[Math.min(8, Math.floor((me.level - 1) / 10))] || 'Luyện Khí';
   const rankName = (G().RANKS || {})[me.rank] || 'Tạp Vụ';
-  const hallName = (G().HALL_NAMES || {})[me.hall] || 'Kiếm Các';
-  const hallIcon = (G().HALL_ICONS_UI || {})[me.hall] || '⚔️';
+  const hallName = (G().HALL_NAMES || {})[me.hall] || 'Chưa chọn';
+  const hallIcon = (G().HALL_ICONS_UI || {})[me.hall] || '';
   document.getElementById('char-body').innerHTML = `
     <div class="row"><span>Đạo hiệu</span><b style="color:#7dff9a">${me.name}</b></div>
     <div class="row"><span>Tông môn</span><b>Thanh Huyền Tông</b></div>

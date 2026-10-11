@@ -370,6 +370,10 @@ function spawnFx(m) {
     } else {
       fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: 90, life: 0.5, color: '#7dff9a' });
     }
+  } else if (m.kind === 'buff') {
+    fxAnims.push({ kind: 'ring', x: m.x, y: m.y, r: 80, life: 0.6, color: '#aee9ff' }); // Thần Hành: vòng gió
+    for (let i = 0; i < 8; i++) particles.push({ x: m.x + (Math.random()-0.5)*60, y: m.y - Math.random()*50,
+      vx: (Math.random()-0.5)*200, vy: -100 - Math.random()*100, life: 0.6, maxLife: 0.6, color: '#aee9ff', size: 8, dot: true });
   } else if (m.kind === 'hit') {
     fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 20, r: 44, life: 0.2, color: '#ff5a5a' });
     for (let i = 0; i < 10; i++) { // tia lửa va chạm văng ra
