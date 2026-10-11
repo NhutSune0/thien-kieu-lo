@@ -1283,7 +1283,7 @@ setInterval(() => { // vòng auto 400ms
   const goNpc = n => send({ t: 'move', x: Math.round(n.x), y: Math.round(n.y) });
   const autoTalk = n => {
     const now = Date.now();
-    if (pendingAutoTalk !== n.id && now - lastAutoTalk > 3000) { pendingAutoTalk = n.id; lastAutoTalk = now; send({ t: 'talk', npc: n.id }); }
+    if (pendingAutoTalk !== n.id && now - lastAutoTalk > 1500) { pendingAutoTalk = n.id; lastAutoTalk = now; send({ t: 'talk', npc: n.id }); }
   };
   // Đi qua cổng sang map đích (dùng cho Auto) — trả về true nếu đã xử lý
   const goToMap = targetMap => {
@@ -1364,7 +1364,7 @@ setInterval(() => { // vòng auto 400ms
     // Auto skill: dùng skill khi có, ưu tiên AoE khi đông quái
     if (!autoSkill(me, best)) send({ t: 'attack' });
   }
-}, 400);
+}, 250); // tăng tốc auto từ 400ms xuống 250ms cho mượt
 
 // Auto dùng kỹ năng — trả về true nếu đã dùng skill
 function autoSkill(me, target) {
