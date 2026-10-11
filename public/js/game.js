@@ -54,7 +54,7 @@ const SFX = {
 
 // ---------- Load assets ----------
 const IMG = {};
-const KEYED = new Set(['walk', 'attack', 'cast', 'm_hac', 'm_xa', 'm_lang',
+const KEYED = new Set(['walk', 'attack', 'cast', 'walk_nu', 'attack_nu', 'cast_nu', 'm_hac', 'm_xa', 'm_lang',
   'npc_ly', 'npc_tran', 'npc_duoc', 'npc_ho', 'm_boss']); // sprite cần tách nền trắng
 const ASSET_V = 'v2'; // version để tránh cache
 function loadImg(key, src) { return new Promise(res => { const i = new Image(); i.onload = () => res(IMG[key] = KEYED.has(key) ? keyOutWhite(i) : i); i.onerror = () => res(null); i.src = src + '?v=' + ASSET_V; }); }
