@@ -382,6 +382,9 @@ function loadPlayer(name) {
 function savePlayer(p) {
   try { fs.writeFileSync(path.join(SAVE_DIR, p.name + '.json'), JSON.stringify(p)); } catch(e) {}
 }
+function deletePlayer(name) {
+  try { fs.unlinkSync(path.join(SAVE_DIR, name + '.json')); } catch(e) {}
+}
 
 let grpSeq = 1; // id bầy quái
 function spawnMonster(type, map, initial, gx, gy, grp) {
@@ -524,6 +527,13 @@ wss.on('connection', ws => {
       doEnhance(p, +msg.id);
     } else if (msg.t === 'potion') {
       usePotion(p);
+    } else if (msg.t === 'deletechar') {
+      // Xóa nhân vật: xóa save, kick khỏi game
+      deletePlayer(p.name);
+      players.delete(ws);
+      broadcast({ t: 'leave', name: p.name });
+      try { ws.close(); } catch(e) {}
+      return;
     } else if (msg.t === 'chat') {
       const now = Date.now();
       if (now - (p.lastChat || 0) < 2000) return; // chống spam

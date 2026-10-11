@@ -202,3 +202,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e1a; f
 .enh-btn:hover { background: #ffd94a; transform: scale(1.1); }
 .gear-slot { position: relative; }
 .gear-max { font-size: 10px; color: #ffd94a; font-weight: bold; margin-top: 2px; }
+
+.delchar-btn { width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; cursor: pointer;
+  background: rgba(200,50,50,.15); border: 1px solid #a33; border-radius: 8px; color: #ff8888; }
+.delchar-btn:hover { background: rgba(200,50,50,.3); }

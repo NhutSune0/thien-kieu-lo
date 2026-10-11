@@ -162,10 +162,17 @@ function renderChar() {
     <div class="stat"><span>Hồi Khí Đan</span><b>🧪 ${me.potions}</b></div>
   </div>
   ${(me.titles && me.titles.length) ? `<div class="char-section">🏵️ Danh hiệu</div><div style="color:#ffd94a;font-size:13px">${me.titles.join(' · ')}</div>` : ''}
-  ${me.level >= 9 && !me.trucCo ? `<button data-trib class="trib-btn">⚡ Độ Kiếp (đến Lôi Kiếp Đài)</button>` : ''}`;
+  ${me.level >= 9 && !me.trucCo ? `<button data-trib class="trib-btn">⚡ Độ Kiếp (đến Lôi Kiếp Đài)</button>` : ''}
+  <button data-delchar class="delchar-btn">🗑️ Xóa nhân vật</button>`;
   document.querySelectorAll('#char-body [data-unequip]').forEach(el => el.onclick = () => {
     G().send({ t: 'unequip', slot: el.dataset.unequip }); setTimeout(renderChar, 300);
   });
+  const delBtn = document.querySelector('#char-body [data-delchar]');
+  if (delBtn) delBtn.onclick = () => {
+    if (confirm('Xóa nhân vật này vĩnh viễn? Không thể khôi phục!')) {
+      if (confirm('Chắc chắn xóa?')) G().send({ t: 'deletechar' });
+    }
+  };
   document.querySelectorAll('#char-body [data-enhance]').forEach(btn => btn.onclick = (e) => {
     e.stopPropagation(); // không trigger unequip
     if (confirm('Cường hóa trang bị? Tốn linh thạch, mỗi cấp +15% chỉ số.')) {
