@@ -55,8 +55,9 @@ const SFX = {
 // ---------- Load assets ----------
 const IMG = {};
 const KEYED = new Set(['walk', 'attack', 'cast', 'walk_nu', 'attack_nu', 'cast_nu', 'm_hac', 'm_xa', 'm_lang',
+  'm_bao', 'm_loi', 'm_yeu',
   'npc_ly', 'npc_tran', 'npc_duoc', 'npc_ho', 'm_boss']); // sprite cần tách nền trắng
-const ASSET_V = 'v2'; // version để tránh cache
+const ASSET_V = 'v3'; // version để tránh cache
 function loadImg(key, src) { return new Promise(res => { const i = new Image(); i.onload = () => res(IMG[key] = KEYED.has(key) ? keyOutWhite(i) : i); i.onerror = () => res(null); i.src = src + '?v=' + ASSET_V; }); }
 // Tách nền trắng: flood-fill từ viền ảnh, chỉ xóa trắng liền với viền (không ăn vào áo trắng nhân vật)
 function keyOutWhite(img) {
@@ -88,6 +89,7 @@ const ASSETS = [
   ['walk', 'assets/nvc-walk.webp'], ['attack', 'assets/nvc-attack.webp'], ['cast', 'assets/nvc-cast.webp'],
   ['walk_nu', 'assets/nvc-nu-walk.webp'], ['attack_nu', 'assets/nvc-nu-attack.webp'], ['cast_nu', 'assets/nvc-nu-cast.webp'],
   ['m_hac', 'assets/mob-hac-mao-thu.webp'], ['m_xa', 'assets/mob-thanh-truc-xa.webp'], ['m_lang', 'assets/mob-da-hoa-lang.webp'],
+  ['m_bao', 'assets/mob-hac-phong-bao.webp'], ['m_loi', 'assets/mob-loi-kiep-thu.webp'], ['m_yeu', 'assets/mob-hac-phong-lao-yeu.webp'],
   ['npc_ly', 'assets/npc-chap-su-ly.webp'], ['npc_tran', 'assets/npc-lao-tran.webp'],
   ['npc_duoc', 'assets/npc-duoc-tran-tu.webp'], ['npc_ho', 'assets/npc-tieu-ho.webp'],
   ['m_boss', 'assets/mob-thiet-bi-da-tru.webp'],
@@ -102,9 +104,9 @@ const NPC_PORTRAIT = { 'chap-su-ly': 'assets/npc-chap-su-ly.webp', 'lao-tran': '
 const IT_EMOJI = { 'la': '🍂', 'linh-thao': '🌿', 'linh-thao-heo': '🥀', 'gieng': '⛲' };
 const ICONS = { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon-cuu-loi-kiem.webp','phan-thien-kiem':'icon-phan-thien-kiem.webp','van-kiem-quy-tong':'icon-van-kiem-quy-tong.webp','hon-don-kim-chung':'icon-hon-don-kim-chung.webp','khai-thien-nhat-kiem':'icon-khai-thien-nhat-kiem.webp' };
 const MOB_IMG = { 'hac-mao-thu':'m_hac', 'thanh-truc-xa':'m_xa', 'da-hoa-lang':'m_lang', 'thiet-bi-da-tru':'m_boss',
-  'am-anh-thu':'m_hac', 'hac-phong-bao':'m_lang', 'hac-phong-lao-yeu':'m_boss', 'loi-kiep-thu':'m_boss',
-  'co-dia-thu':'m_lang', 'linh-mach-yeu':'m_boss', 'u-minh-quy':'m_hac', 'minh-ha-cot':'m_boss',
-  'kiem-khi-linh':'m_lang', 'thien-kiem-thu':'m_boss' };
+  'am-anh-thu':'m_hac', 'hac-phong-bao':'m_bao', 'hac-phong-lao-yeu':'m_yeu', 'loi-kiep-thu':'m_loi',
+  'co-dia-thu':'m_bao', 'linh-mach-yeu':'m_loi', 'u-minh-quy':'m_hac', 'minh-ha-cot':'m_yeu',
+  'kiem-khi-linh':'m_loi', 'thien-kiem-thu':'m_bao' };
 const SKILL_NAMES = { 'linh-kiem-tram':'Linh Kiếm Trảm','cuu-loi-kiem':'Cửu Lôi Kiếm Quyết','phan-thien-kiem':'Phần Thiên Kiếm','van-kiem-quy-tong':'Vạn Kiếm Quy Tông','hon-don-kim-chung':'Hỗn Độn Kim Chung','khai-thien-nhat-kiem':'Khai Thiên Nhất Kiếm' };
 // P3: bậc + Đường (server gửi id, client dịch tên)
 const RANKS = { 'tap-vu':'Tạp Vụ','ngoai-mon':'Ngoại Môn','noi-mon':'Nội Môn','hac-tam':'Hạch Tâm','chan-truyen':'Chân Truyền','thien-kieu':'Thiên Kiêu' };
