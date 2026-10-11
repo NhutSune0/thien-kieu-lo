@@ -17,14 +17,19 @@ const SPAWN = { x: WORLD_W / 2, y: WORLD_H / 2 };
 const SAFE_R = 520; // vùng an toàn quanh điểm spawn: quái không chủ động đánh người trong này
 const PLAYER_SPEED = 230;                  // px/s (server kiểm tra)
 
-// ---------- 2 map: tông môn (an toàn) + yêu thú (farm) ----------
+// ---------- 11 map: tông môn + các vùng farm/boss ----------
 const MAPS = {
   'tong-mon': { name: 'Thanh Huyền Tông' },
   'yeu-thu':  { name: 'Yêu Thú Sơn Mạch' },
   'hac-phong': { name: 'Hắc Phong Lĩnh' },
   'thi-luyen': { name: 'Thí Luyện Trường' },
   'loi-kiep': { name: 'Lôi Kiếp Đài' },
-  'linh-mach': { name: 'Linh Mạch Cổ Địa' }, // Map Trúc Cơ (cấp 10+)
+  'linh-mach': { name: 'Linh Mạch Cổ Địa' }, // Trúc Cơ (cấp 10+)
+  'tang-kinh': { name: 'Tàng Kinh Các' }, // Thư viện tông môn
+  'luyen-dan': { name: 'Luyện Đan Phòng' }, // Phòng luyện đan
+  'u-minh': { name: 'U Minh Cốc' }, // Farm cấp 15+
+  'thien-kiem': { name: 'Thiên Kiếm Nhai' }, // Farm cấp 18+
+  'huyet-ma': { name: 'Huyết Ma Động' }, // Động boss cuối
 };
 const PORTALS = [
   { id: 'to-yeuthu',  from: 'tong-mon', x: 1920, y: 2620, to: 'yeu-thu',  tx: 1920, ty: 2380, label: 'Yêu Thú Sơn Mạch' },
@@ -36,7 +41,7 @@ const PORTALS = [
   { id: 'to-loikiep', from: 'tong-mon', x: 400, y: 1400, to: 'loi-kiep', tx: 1920, ty: 2500, label: 'Lôi Kiếp Đài' },
   { id: 'to-tongmon3', from: 'loi-kiep', x: 1920, y: 2620, to: 'tong-mon', tx: 400, ty: 1400, label: 'Thanh Huyền Tông' },
 ];
-const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 }, 'loi-kiep': { x: 1920, y: 2500 }, 'linh-mach': { x: 1920, y: 2500 } };
+const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 }, 'loi-kiep': { x: 1920, y: 2500 }, 'linh-mach': { x: 1920, y: 2500 }, 'tang-kinh': { x: 1920, y: 2500 }, 'luyen-dan': { x: 1920, y: 2500 }, 'u-minh': { x: 1920, y: 2500 }, 'thien-kiem': { x: 1920, y: 2500 }, 'huyet-ma': { x: 1920, y: 2500 } };
 // Vật cản lớn mỗi map (x, y, r) — quái né khi di chuyển (hồ nước, đá lớn, cây đổ)
 const OBSTACLES = {
   'yeu-thu': [
@@ -270,46 +275,84 @@ const MONSTERS = {
   // Linh Mạch Cổ Địa: quái Trúc Cơ (cấp 10-15)
   'co-dia-thu':    { hp: 800, dmg: 60, tv: 400, ltMin: 15, ltMax: 25, speed: 185, aggro: 350, count: 18, map: 'linh-mach', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '10-12' },
   'linh-mach-yeu': { hp: 1200, dmg: 85, tv: 650, ltMin: 25, ltMax: 40, speed: 195, aggro: 380, count: 15, map: 'linh-mach', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '12-15' },
+  // U Minh Cốc: quái cấp 15-18
+  'u-minh-quy':    { hp: 1800, dmg: 110, tv: 900, ltMin: 30, ltMax: 50, speed: 200, aggro: 400, count: 16, map: 'u-minh', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '15-16' },
+  'minh-ha-cot':   { hp: 2500, dmg: 140, tv: 1200, ltMin: 40, ltMax: 65, speed: 210, aggro: 420, count: 14, map: 'u-minh', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '16-18' },
+  // Thiên Kiếm Nhai: quái cấp 18-20
+  'kiem-khi-linh': { hp: 3200, dmg: 170, tv: 1500, ltMin: 50, ltMax: 80, speed: 215, aggro: 440, count: 14, map: 'thien-kiem', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '18-19' },
+  'thien-kiem-thu':{ hp: 4200, dmg: 210, tv: 2000, ltMin: 65, ltMax: 100, speed: 225, aggro: 460, count: 12, map: 'thien-kiem', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '19-20' },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
 const NPCS = {
   'dich-chuyen':  { name: 'Trưởng Lão Dịch Chuyển', x: 1920, y: 2000, map: 'tong-mon', teleport: true },
+  // NPC tông môn mới
+  'chuong-mon':   { name: 'Chưởng Môn Huyền Cơ', x: 1920, y: 1500, map: 'tong-mon', dialog: 'chưởng môn' },
+  'truyen-cong':  { name: 'Trưởng Lão Truyền Công', x: 1700, y: 2000, map: 'tong-mon', dialog: 'truyền công' },
+  'dan-su':       { name: 'Đan Sư Dược Trần', x: 2140, y: 2000, map: 'tong-mon', dialog: 'đan sư' },
+  'thu-kho':      { name: 'Thủ Kho Linh Bảo', x: 1920, y: 2300, map: 'tong-mon', dialog: 'thủ kho' },
+  // NPC các map khác
+  'thu-vien':     { name: 'Thủ Thư Cổ Nguyệt', x: 1920, y: 2200, map: 'tang-kinh', dialog: 'thủ thư' },
+  'luyen-dan-su': { name: 'Luyện Đan Sư Hỏa Vân', x: 1920, y: 2200, map: 'luyen-dan', dialog: 'luyện đan' },
 };
 
 // ---------- Nhiệm vụ Chương 1 (chuỗi tuyến tính) ----------
 const QUESTS = {
-  'C1-01': { name: 'Nhập Môn', giver: 'chap-su-ly', turnin: 'duoc-tran-tu',
-    objectives: [{ type: 'talk', npc: 'duoc-tran-tu', text: 'Gặp Dược Trần Tử báo danh' }],
-    reward: { tv: 50, lt: 5, dch: 10 },
-    offer: ['Tạp linh căn thì về Tạp Dịch Viện. Đừng có mơ mộng.', 'Đến gặp Dược Trần Tử báo danh đi.'],
-    done: ['Lại một đứa nhỏ bị chê... Không sao.', 'Ở đây không ai chê con cả. Tạp vụ cũng là đệ tử tông môn.'] },
-  'C1-02': { name: 'Chổi Đầu Đời', giver: 'lao-tran', turnin: 'lao-tran',
-    objectives: [{ type: 'collect', item: 'la', count: 5, text: 'Quét lá trong sân' }],
-    reward: { tv: 30, dch: 10 },
-    offer: ['Quét sân thì phải quét tâm trước.', 'Quét 5 đống lá trong sân đi.'],
-    done: ['Sân sạch rồi. Tâm con cũng sạch hơn chút đấy.'] },
-  'C1-03': { name: 'Gánh Nước Linh Tuyền', giver: 'tieu-ho', turnin: 'duoc-tran-tu',
-    objectives: [{ type: 'interact', obj: 'gieng', text: 'Lấy nước ở giếng phía đông' },
-                 { type: 'talk', npc: 'duoc-tran-tu', text: 'Gánh nước về cho Dược Trần Tử' }],
-    reward: { tv: 60, lt: 5, dch: 15 },
-    offer: ['Đi! Gánh nước Linh Tuyền với ta!', 'Lấy nước ở giếng phía đông rồi gánh về cho Dược lão.'],
-    done: ['Nước Linh Tuyền đây rồi. Vất vả cho con.'] },
-  'C1-04': { name: 'Hái Linh Thảo', giver: 'duoc-tran-tu', turnin: 'duoc-tran-tu',
-    objectives: [{ type: 'collect', item: 'linh-thao', count: 10, text: 'Hái Linh Thảo tươi' }],
-    reward: { tv: 80, potions: 2, dch: 20, gear: 1 },
-    offer: ['Đan Đường thiếu Linh Thảo luyện Hồi Khí Đan.', 'Hái 10 gốc tươi về đây. Cẩn thận, có 2 gốc héo đấy!'],
-    done: ['Đủ 10 gốc tươi. Tốt lắm!'] },
-  'C1-05': { name: 'Bữa Cơm Huynh Đệ', giver: 'tieu-ho', turnin: 'tieu-ho',
-    objectives: [{ type: 'talk', npc: 'tieu-ho', text: 'Ăn bánh bao cùng Tiểu Hổ' }],
-    reward: { tv: 30, ketbai: true },
-    offer: ['Này, phần bánh bao của ngươi đây.', 'Ngươi là huynh đệ đầu tiên của ta ở đây.', 'Sau này ai bắt nạt ngươi... ta sẽ chạy đi gọi người cứu ngươi!'],
-    done: ['Từ nay chúng ta là huynh đệ! (Đã mở Kết bái)'] },
-  'C1-06': { name: 'Đêm Yêu Thú', giver: 'lao-tran', turnin: 'lao-tran',
-    objectives: [{ type: 'kill', mob: 'thiet-bi-da-tru', count: 1, text: 'Đánh bại Thiết Bì Dã Trư' }],
-    reward: { tv: 300, lt: 20, dch: 100, title: 'Kẻ Sống Sót Đêm Yêu Thú', gear: 2 },
-    offer: ['Đêm nay có yêu thú lẻn vào Tạp Dịch Viện!', 'Cẩn thận đấy tiểu tử...'],
-    done: ['Tiểu tử... thú vị đấy. (Hỗn Độn Linh Căn của con vừa rung động!)'] },
+  // Chương 1: Nhập môn
+  'Q01': { name: 'Bái Kiến Chưởng Môn', giver: 'dich-chuyen', turnin: 'chuong-mon',
+    objectives: [{ type: 'talk', npc: 'chuong-mon', text: 'Gặp Chưởng Môn Huyền Cơ' }],
+    reward: { tv: 100, lt: 20 },
+    offer: ['Ngươi là đệ tử mới? Đến bái kiến Chưởng Môn đi.'],
+    done: ['Huyết Ma sắp xuất thế, tông môn cần người tài như ngươi!', 'Hãy đi săn yêu thú rèn luyện đi.'] },
+  'Q02': { name: 'Săn Yêu Thú', giver: 'chuong-mon', turnin: 'chuong-mon',
+    objectives: [{ type: 'kill', mob: 'hac-mao-thu', count: 10, text: 'Diệt 10 Hắc Mao Thử' }],
+    reward: { tv: 200, lt: 30 },
+    offer: ['Yêu Thú Sơn Mạch yêu khí ngút trời.', 'Đi diệt 10 Hắc Mao Thử rèn luyện!'],
+    done: ['Tốt lắm! Ngươi đã có phong thái tu sĩ rồi.'] },
+  'Q03': { name: 'Thử Thách Rắn Xanh', giver: 'chuong-mon', turnin: 'truyen-cong',
+    objectives: [{ type: 'kill', mob: 'thanh-truc-xa', count: 8, text: 'Diệt 8 Thanh Trúc Xà' }],
+    reward: { tv: 300, lt: 50 },
+    offer: ['Thanh Trúc Xà độc tính mạnh, cẩn thận!', 'Diệt 8 con rồi về gặp Trưởng Lão Truyền Công.'],
+    done: ['Không tệ! Ta sẽ chỉ điểm thêm cho ngươi.'] },
+  // Chương 2: Hắc Phong Lĩnh
+  'Q04': { name: 'Hắc Phong Nguy Cơ', giver: 'truyen-cong', turnin: 'chuong-mon',
+    objectives: [{ type: 'kill', mob: 'am-anh-thu', count: 10, text: 'Diệt 10 Âm Ảnh Thử ở Hắc Phong Lĩnh' }],
+    reward: { tv: 500, lt: 80 },
+    offer: ['Hắc Phong Lĩnh có dị động, ma khí lan tràn.', 'Đi điều tra, diệt 10 Âm Ảnh Thử!'],
+    done: ['Ma khí quả nhiên đang mạnh lên...'] },
+  'Q05': { name: 'Báo Đen Hắc Phong', giver: 'chuong-mon', turnin: 'chuong-mon',
+    objectives: [{ type: 'kill', mob: 'hac-phong-bao', count: 8, text: 'Diệt 8 Hắc Phong Báo' }],
+    reward: { tv: 800, lt: 120 },
+    offer: ['Hắc Phong Báo là tay sai của Huyết Ma.', 'Diệt 8 con để suy yếu chúng!'],
+    done: ['Ngươi đã sẵn sàng độ kiếp chưa?'] },
+  // Chương 3: Độ kiếp
+  'Q06': { name: 'Cửu Cửu Lôi Kiếp', giver: 'chuong-mon', turnin: 'chuong-mon',
+    objectives: [{ type: 'tribulate', text: 'Vượt qua Cửu Cửu Lôi Kiếp' }],
+    reward: { tv: 1000, lt: 200 },
+    offer: ['Đến Lôi Kiếp Đài, độ kiếp thành Trúc Cơ!', 'Đánh bại 9 đợt Lôi Kiếp Thú!'],
+    done: ['Trúc Cơ thành công! Tông môn có thêm một trụ cột!'] },
+  // Chương 4: Linh Mạch Cổ Địa
+  'Q07': { name: 'Khám Phá Cổ Địa', giver: 'chuong-mon', turnin: 'dan-su',
+    objectives: [{ type: 'kill', mob: 'co-dia-thu', count: 10, text: 'Diệt 10 Cổ Địa Thú' }],
+    reward: { tv: 1500, lt: 300 },
+    offer: ['Linh Mạch Cổ Địa linh khí dồi dào nhưng yêu thú hung mãnh.', 'Đi rèn luyện đi!'],
+    done: ['Đan dược này tặng ngươi, dùng khi nguy cấp.'] },
+  'Q08': { name: 'Yêu Vật Linh Mạch', giver: 'dan-su', turnin: 'thu-kho',
+    objectives: [{ type: 'kill', mob: 'linh-mach-yeu', count: 8, text: 'Diệt 8 Linh Mạch Yêu' }],
+    reward: { tv: 2000, lt: 400 },
+    offer: ['Linh Mạch Yêu đang phá hoại linh mạch!', 'Diệt chúng rồi về gặp Thủ Kho nhận thưởng.'],
+    done: ['Tông môn ghi nhận công lao của ngươi!'] },
+  // Chương 5: U Minh Cốc
+  'Q09': { name: 'U Minh Thám Hiểm', giver: 'thu-kho', turnin: 'chuong-mon',
+    objectives: [{ type: 'kill', mob: 'u-minh-quy', count: 10, text: 'Diệt 10 U Minh Quỷ' }],
+    reward: { tv: 3000, lt: 600 },
+    offer: ['U Minh Cốc là nơi Huyết Ma từng tu luyện.', 'Vào đó điều tra!'],
+    done: ['Huyết Ma sắp phá phong ấn rồi...'] },
+  'Q10': { name: 'Quyết Chiến Huyết Ma', giver: 'chuong-mon', turnin: 'chuong-mon',
+    objectives: [{ type: 'kill', mob: 'minh-ha-cot', count: 5, text: 'Diệt 5 Minh Hà Cốt Ma' }],
+    reward: { tv: 5000, lt: 1000 },
+    offer: ['Đây là trận chiến cuối cùng!', 'Diệt Minh Hà Cốt Ma, ngăn Huyết Ma xuất thế!'],
+    done: ['Ngươi đã cứu tông môn! Tên ngươi sẽ lưu danh thiên cổ!'] },
 };
 const QUEST_ORDER = Object.keys(QUESTS);
 
@@ -689,9 +732,36 @@ function defaultLines(npcId) {
 }
 function handleTalk(p, npcId) {
   const npc = NPCS[npcId]; if (!npc) return;
-  const lines = ['Muốn đi đâu? Ta đưa ngươi đi ngay.'];
-  sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept: false, canTurnin: false, qid: null,
-    canTeleport: !!npc.teleport, teleports: npc.teleport ? getTeleports(p) : undefined });
+  let lines = ['Muốn đi đâu? Ta đưa ngươi đi ngay.'];
+  // Dialog riêng cho từng NPC
+  const dialogs = {
+    'chuong-mon': [
+      'Ta là Huyền Cơ Tử, chưởng môn Thanh Huyền Tông.',
+      'Ma đạo đang trỗi dậy, Huyết Ma Động phong ấn sắp vỡ.',
+      'Ngươi hãy tu luyện thật tốt, tông môn trông cậy vào ngươi!',
+    ],
+    'truyen-cong': [
+      'Muốn học công pháp mới? Hãy đột phá cảnh giới đi.',
+      'Mỗi tầng mới sẽ mở khóa kỹ năng mạnh hơn.',
+    ],
+    'dan-su': [
+      'Đan dược là bảo bối của tu sĩ.',
+      'Hồi Khí Đan hết thì đi đánh quái kiếm linh thạch mua thêm nhé.',
+    ],
+    'thu-kho': [
+      'Kho linh bảo của tông môn đây.',
+      'Trang bị không dùng thì bán đi, đừng để chật túi!',
+    ],
+    'thu-vien': [
+      'Tàng Kinh Các chứa vô số bí tịch.',
+      'Đọc sách vạn quyển, tu hành mới tinh thông.',
+    ],
+    'luyen-dan-su': [
+      'Lửa lò đang cháy, đan sắp thành!',
+      'Ngươi có linh thảo không? Ta luyện giúp cho.',
+    ],
+  };
+  if (dialogs[npcId]) lines = dialogs[npcId];
   sendTo(p, { t: 'dlg', npc: npcId, name: npc.name, lines, canAccept: false, canTurnin: false, qid: null,
     canTeleport: !!npc.teleport, teleports: npc.teleport ? getTeleports(p) : undefined });
 }
@@ -703,6 +773,8 @@ function getTeleports(p) {
     { map: 'thi-luyen', name: 'Thí Luyện Trường', needLv: 7 },
     { map: 'loi-kiep', name: 'Lôi Kiếp Đài', needLv: 1 },
     { map: 'linh-mach', name: 'Linh Mạch Cổ Địa (Trúc Cơ)', needLv: 10 },
+    { map: 'u-minh', name: 'U Minh Cốc (15+)', needLv: 15 },
+    { map: 'thien-kiem', name: 'Thiên Kiếm Nhai (18+)', needLv: 18 },
   ].filter(t => p.level >= t.needLv && p.map !== t.map);
 }
 function doTeleport(p, map) {

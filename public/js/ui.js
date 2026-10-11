@@ -286,12 +286,29 @@ function chatOpen() { return document.getElementById('chatinput-wrap').style.dis
 
 // ---------- Nhiệm vụ ----------
 function updateQuest() {
-  // Đã bỏ hệ nhiệm vụ — ẩn tracker
-  document.getElementById('quest-tracker').style.display = 'none';
-  return;
+  const q = G().quest || { active: null, done: [] };
+  const tr = document.getElementById('quest-tracker');
+  if (q.active) {
+    tr.style.display = 'block';
+    document.getElementById('qt-name').textContent = '📜 ' + q.active.name;
+    document.getElementById('qt-obj').textContent = q.active.text;
+  } else tr.style.display = 'none';
+  if (document.getElementById('panel-quest').classList.contains('open')) renderQuestPanel();
 }
 function renderQuestPanel() {
-  return; // Đã bỏ hệ nhiệm vụ
+  const q = G().quest || { active: null, done: [] };
+  const doneCount = (q.done || []).length;
+  let html = '';
+  if (q.active) html += `<div class="q-active"><b>📜 ${q.active.name}</b><div>${q.active.text}</div></div>`;
+  else html += `<div style="color:#66708c">Chưa nhận nhiệm vụ nào.<br>Tìm NPC có dấu <b style="color:#ffd94a">!</b> để nhận.</div>`;
+  html += `<div style="margin-top:10px;color:#8fa0c8;font-size:12px">Đã hoàn thành: ${doneCount} nhiệm vụ</div>`;
+  // Danh sách nhiệm vụ có thể nhận
+  const avail = G().questAvails || [];
+  if (avail.length) {
+    html += `<div style="margin-top:8px"><b style="color:#ffd94a">Có thể nhận:</b></div>`;
+    for (const a of avail) html += `<div style="color:#9fb0d8;font-size:12px;margin-top:4px">• ${a.name} <span style="color:#66708c">(${a.giverName})</span></div>`;
+  }
+  document.getElementById('quest-body').innerHTML = html;
 }
 
 // ---------- Khung thoại NPC ----------
