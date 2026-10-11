@@ -242,6 +242,10 @@ function handle(m) {
   else if (m.t === 'hallskills') {
     SKILLS = m.skills; ORDER = m.order;
     Object.assign(ICONS, m.icons || {}); Object.assign(SKILL_NAMES, m.names || {});
+    // Preload icon mới ngay để skill hiện nhanh
+    for (const [id, f] of Object.entries(m.icons || {})) {
+      if (!IMG['ic_' + id] && f) loadImg('ic_' + id, 'assets/' + f);
+    }
     UI.buildSkills(); UI.updateMe(players.get(myName)); UI.renderChar();
     sysMsg('✨ Đã học bộ công pháp mới! Bấm 1-' + ORDER.length + ' để dùng.');
   }
@@ -292,7 +296,11 @@ function spawnFx(m) {
   // Kích hoạt animation đánh / vận công của người tung chiêu
   if (m.by) {
     if (m.kind === 'slash') atkAnim.set(m.by, now + 340);
-    else if (sid) castAnim.set(m.by, now + 520);
+    else if (sid) {
+      castAnim.set(m.by, now + 520);
+      // Chớp sáng quanh người khi vận công
+      fxAnims.push({ kind: 'flash', x: m.x, y: m.y - 50, r: 70, life: 0.35, maxLife: 0.35, color: '#ffffff' });
+    }
   }
   // Tên chiêu bay — phong cách truyện tu tiên
   if (sid && SKILL_NAMES[sid] && m.kind !== 'hit' && m.kind !== 'slash') {
@@ -547,7 +555,7 @@ function loop(t) {
       ? ['#ff8ab3','#ffd94a','#ffffff','#c49aff','#ff6a6a']
       : ['#ffb3d9','#ffffff','#ffd94a','#ff9ec6'];
     const fl = [];
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 25; i++) { // giảm từ 70 xuống 25 cho gọn
       fl.push({ x: rnd() * WORLD_W, y: rnd() * WORLD_H, c: cols[(rnd() * cols.length) | 0], s: 5 + rnd() * 4, ph: rnd() * 6.28 });
     }
     window._flowers = { map: myMap, list: fl };
@@ -592,11 +600,11 @@ function loop(t) {
     }
   }
 
-  // Ambient theo map — không khí tiên hiệp
+  // Ambient theo map — không khí tiên hiệp (giảm tần suất cho gọn)
   if (!window._ambT) window._ambT = 0;
   window._ambT -= dt;
   if (window._ambT <= 0) {
-    window._ambT = 0.22 + Math.random() * 0.3;
+    window._ambT = 0.8 + Math.random() * 0.8; // chậm hơn: 0.8-1.6s mới spawn 1 hạt
     const ax = camX + (Math.random()-0.5) * cv.width / ZOOM, ay = camY + (Math.random()-0.5) * cv.height / ZOOM;
     const r = Math.random();
     if (myMap === 'tong-mon') {
