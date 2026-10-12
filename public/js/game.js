@@ -1373,11 +1373,16 @@ setInterval(() => { // vòng auto 400ms
   const goToMap = targetMap => {
     if (targetMap === myMap) return false;
     const pt = portals.find(x => x.to === targetMap);
-    if (!pt) return false;
-    if (Math.hypot(pt.x - me.x, pt.y - me.y) < 130) {
-      const now = Date.now();
-      if (now - lastPortalSend > 2000) { lastPortalSend = now; send({ t: 'portal', id: pt.id }); }
-    } else send({ t: 'move', x: Math.round(pt.x), y: Math.round(pt.y) });
+    if (pt) {
+      if (Math.hypot(pt.x - me.x, pt.y - me.y) < 130) {
+        const now = Date.now();
+        if (now - lastPortalSend > 2000) { lastPortalSend = now; send({ t: 'portal', id: pt.id }); }
+      } else send({ t: 'move', x: Math.round(pt.x), y: Math.round(pt.y) });
+      return true;
+    }
+    // Không có cổng trực tiếp -> dùng dịch chuyển (Trưởng Lão Dịch Chuyển)
+    const now = Date.now();
+    if (now - lastPortalSend > 2000) { lastPortalSend = now; send({ t: 'teleport', map: targetMap }); }
     return true;
   };
   // 1. NV: tìm NPC mục tiêu (trả '?' -> nhận '!' -> nói chuyện theo mục tiêu)
