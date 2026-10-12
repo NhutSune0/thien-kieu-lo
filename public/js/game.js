@@ -8,7 +8,7 @@ const WORLD_W = 80 * 48, WORLD_H = 60 * 48;
 let ws, myName = '', players = new Map(), monsters = new Map();
 let camX = WORLD_W/2, camY = WORLD_H/2;
 let SKILLS = {}, ORDER = [];
-let particles = [], dmgNums = [], fxAnims = [];
+let particles = [], dmgNums = [], fxAnims = [], rings = [], flashes = [];
 let tribActive = null, tribWarnings = []; // độ kiếp: trạng thái + vòng cảnh báo sét
 let zonesFx = []; // P3: vòng trận pháp đang tồn tại trên map
 let shake = 0, hitStop = 0; // rung màn hình, khựng khi trúng đòn
@@ -106,7 +106,7 @@ const ICONS = { 'linh-kiem-tram':'icon-linh-kiem-tram.webp','cuu-loi-kiem':'icon
 const MOB_IMG = { 'hac-mao-thu':'m_hac', 'thanh-truc-xa':'m_xa', 'da-hoa-lang':'m_lang', 'thiet-bi-da-tru':'m_boss',
   'am-anh-thu':'m_hac', 'hac-phong-bao':'m_bao', 'hac-phong-lao-yeu':'m_yeu', 'loi-kiep-thu':'m_loi',
   'co-dia-thu':'m_bao', 'linh-mach-yeu':'m_loi', 'u-minh-quy':'m_hac', 'minh-ha-cot':'m_yeu',
-  'kiem-khi-linh':'m_loi', 'thien-kiem-thu':'m_bao' };
+  'kiem-khi-linh':'m_loi', 'thien-kiem-thu':'m_bao', 'huyet-ma-tieu':'m_yeu', 'huyet-ma-vuong':'m_yeu' };
 const SKILL_NAMES = { 'linh-kiem-tram':'Linh Kiếm Trảm','cuu-loi-kiem':'Cửu Lôi Kiếm Quyết','phan-thien-kiem':'Phần Thiên Kiếm','van-kiem-quy-tong':'Vạn Kiếm Quy Tông','hon-don-kim-chung':'Hỗn Độn Kim Chung','khai-thien-nhat-kiem':'Khai Thiên Nhất Kiếm' };
 // P3: bậc + Đường (server gửi id, client dịch tên)
 const RANKS = { 'tap-vu':'Tạp Vụ','ngoai-mon':'Ngoại Môn','noi-mon':'Nội Môn','hac-tam':'Hạch Tâm','chan-truyen':'Chân Truyền','thien-kieu':'Thiên Kiêu' };
@@ -180,14 +180,33 @@ function handle(m) {
     if (mb) {
       mb.dying = performance.now() + 450; dyingMobs.set(m.mid, mb); // ngã xuống fade dần
       const mx = mb.rx !== undefined ? mb.rx : mb.x, my = mb.ry !== undefined ? mb.ry : mb.y;
-      const n = mb.type === 'thiet-bi-da-tru' ? 30 : 14; // boss nổ to hơn
+      const isBoss = mb.boss || mb.type === 'thiet-bi-da-tru' || mb.type === 'hac-phong-lao-yeu' || mb.type === 'huyet-ma-vuong';
+      const n = isBoss ? 30 : 14; // boss nổ to hơn
+      // Màu theo cấp quái
+      const tierColors = isBoss ? ['#ff3d3d','#ff9d00','#ffffff','#ffeb3b'] :
+        ['#ff5a5a','#ffb060','#ffffff','#c9a06a'];
       for (let i = 0; i < n; i++) { // nổ tung mảnh pixel
         const a = Math.random()*Math.PI*2, sp = 120 + Math.random()*300;
         particles.push({ x: mx + (Math.random()-0.5)*30, y: my - 40 + (Math.random()-0.5)*30,
           vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 160, ang: Math.random()*6, spin: (Math.random()-0.5)*10,
-          life: 0.8, maxLife: 0.8, color: ['#ff5a5a','#ffb060','#ffffff','#c9a06a'][i % 4], size: 7 + Math.random()*9, chunk: true });
+          life: 0.8, maxLife: 0.8, color: tierColors[i % 4], size: 7 + Math.random()*9, chunk: true });
       }
-      if (mb.type === 'thiet-bi-da-tru') { shake = Math.max(shake, 14); hitStop = Math.max(hitStop, 0.22); }
+      // Linh hồn bay lên (wisp phát sáng)
+      for (let i = 0; i < (isBoss ? 5 : 2); i++) {
+        particles.push({ x: mx + (Math.random()-0.5)*40, y: my - 50,
+          vx: (Math.random()-0.5)*60, vy: -180 - Math.random()*120,
+          life: 1.2, maxLife: 1.2, color: isBoss ? '#ffeb3b' : '#aef3ff',
+          size: 10 + Math.random()*8, glow: true, wisp: true });
+      }
+      // Vòng sóng xung kích lan ra
+      rings.push({ x: mx, y: my - 30, r: 10, maxR: isBoss ? 180 : 90,
+        life: 0.5, maxLife: 0.5, color: isBoss ? '#ff9d00' : '#ffffff', width: 4 });
+      if (isBoss) {
+        shake = Math.max(shake, 14); hitStop = Math.max(hitStop, 0.22);
+        // Flash sáng màn hình khi giết boss
+        flashes.push({ life: 0.3, maxLife: 0.3, color: '#fff3c4' });
+        sysMsg('💀 Đã hạ ' + (mb.name || 'Boss') + '!');
+      }
       // KPAH: đồng linh thạch văng ra rồi bay về phía người chơi (visual, loot thật server đã cộng)
       const me = players.get(myName);
       for (let i = 0; i < 5; i++) {
@@ -557,6 +576,37 @@ function loop(t) {
       fxAnims.push({ kind: 'lightning', x: sx, y: 600 + Math.random()*800, life: 0.3, maxLife: 0.3 });
     }
   }
+  if (myMap === 'linh-mach') { // Linh Mạch Cổ Địa: linh khí xanh bay
+    ctx.fillStyle = 'rgba(20,60,40,0.25)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+    if (Math.random() < 0.1) {
+      particles.push({ x: vx0 + Math.random()*(vx1-vx0), y: WORLD_H,
+        vx: (Math.random()-0.5)*30, vy: -60 - Math.random()*60,
+        life: 2.5, maxLife: 2.5, color: '#7dffb0', size: 8, dot: true, glow: true, ambient: true });
+    }
+  }
+  if (myMap === 'u-minh') { // U Minh Cốc: tối tăm, ma trơi
+    ctx.fillStyle = 'rgba(10,10,25,0.55)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+    if (Math.random() < 0.08) {
+      particles.push({ x: vx0 + Math.random()*(vx1-vx0), y: Math.random()*WORLD_H,
+        vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40,
+        life: 2, maxLife: 2, color: '#9d4edd', size: 10, dot: true, glow: true, ambient: true });
+    }
+  }
+  if (myMap === 'thien-kiem') { // Thiên Kiếm Nhai: kiếm khí bay
+    ctx.fillStyle = 'rgba(40,50,70,0.2)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+    if (Math.random() < 0.05) {
+      const sx = vx0 + Math.random()*(vx1-vx0);
+      fxAnims.push({ kind: 'swordfly', x: sx, y: Math.random()*WORLD_H, life: 0.8, maxLife: 0.8 });
+    }
+  }
+  if (myMap === 'huyet-ma') { // Huyết Ma Động: đỏ máu, u ám
+    ctx.fillStyle = 'rgba(60,10,10,0.45)'; ctx.fillRect(vx0, 0, vx1 - vx0, WORLD_H);
+    if (Math.random() < 0.1) {
+      particles.push({ x: vx0 + Math.random()*(vx1-vx0), y: 0,
+        vx: (Math.random()-0.5)*20, vy: 50 + Math.random()*50,
+        life: 2, maxLife: 2, color: '#ff3d3d', size: 7, dot: true, glow: true, ambient: true });
+    }
+  }
 
   // Hoa dại tĩnh theo map (seeded — vị trí cố định mỗi lần vào)
   if (!window._flowers || window._flowers.map !== myMap) {
@@ -899,6 +949,32 @@ function loop(t) {
   }
   particles = particles.filter(p => p.life > 0);
 
+  // Vòng sóng xung kích khi giết quái
+  for (const r of rings) {
+    r.life -= dt;
+    const prog = 1 - Math.max(0, r.life / r.maxLife);
+    r.r = 10 + (r.maxR - 10) * prog;
+    const a = Math.max(0, r.life / r.maxLife);
+    ctx.save(); ctx.globalAlpha = a * 0.9;
+    ctx.strokeStyle = r.color; ctx.lineWidth = r.width * a + 1;
+    ctx.shadowColor = r.color; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  rings = rings.filter(r => r.life > 0);
+
+  // Flash sáng màn hình khi giết boss
+  for (const f of flashes) {
+    f.life -= dt;
+    const a = Math.max(0, f.life / f.maxLife) * 0.35;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.fillStyle = f.color;
+    const fw = cv.width / ZOOM, fh = cv.height / ZOOM;
+    ctx.fillRect(camX - fw/2, camY - fh/2, fw, fh);
+    ctx.restore();
+  }
+  flashes = flashes.filter(f => f.life > 0);
+
   for (const f of fxAnims) {
     f.life -= dt; const a = Math.max(0, f.life);
     ctx.save(); ctx.globalAlpha = Math.min(1, a * 2);
@@ -914,6 +990,12 @@ function loop(t) {
       ctx.stroke();
       ctx.fillStyle = 'rgba(200,240,255,.5)';
       ctx.beginPath(); ctx.arc(f.x, f.y, 60 * a, 0, Math.PI*2); ctx.fill();
+    } else if (f.kind === 'swordfly') { // kiếm khí bay ngang ở Thiên Kiếm Nhai
+      ctx.save();
+      ctx.translate(f.x - (1-a)*400, f.y); ctx.rotate(-0.2);
+      ctx.fillStyle = '#cfe8ff'; ctx.shadowColor = '#6adce8'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(-10, -6); ctx.lineTo(-24, 0); ctx.lineTo(-10, 6); ctx.closePath(); ctx.fill();
+      ctx.restore();
     } else if (f.kind === 'bagua') { // P3: trận đồ bát quái dưới đất
       const r = f.r * (1.15 - a * 0.15);
       ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.shadowColor = f.color; ctx.shadowBlur = 14;

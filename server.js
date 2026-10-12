@@ -40,6 +40,15 @@ const PORTALS = [
   { id: 'to-tongmon2', from: 'thi-luyen', x: 1920, y: 2620, to: 'tong-mon', tx: 3400, ty: 1400, label: 'Thanh Huyền Tông' },
   { id: 'to-loikiep', from: 'tong-mon', x: 400, y: 1400, to: 'loi-kiep', tx: 1920, ty: 2500, label: 'Lôi Kiếp Đài' },
   { id: 'to-tongmon3', from: 'loi-kiep', x: 1920, y: 2620, to: 'tong-mon', tx: 400, ty: 1400, label: 'Thanh Huyền Tông' },
+  // Chuỗi map Trúc Cơ: Hắc Phong -> Linh Mạch -> U Minh -> Thiên Kiếm -> Huyết Ma
+  { id: 'to-linhmach', from: 'hac-phong', x: 3400, y: 400, to: 'linh-mach', tx: 400, ty: 2400, label: 'Linh Mạch Cổ Địa', needLv: 10 },
+  { id: 'to-hacphong2', from: 'linh-mach', x: 400, y: 2400, to: 'hac-phong', tx: 3400, ty: 400, label: 'Hắc Phong Lĩnh' },
+  { id: 'to-uminh', from: 'linh-mach', x: 3400, y: 400, to: 'u-minh', tx: 400, ty: 2400, label: 'U Minh Cốc', needLv: 15 },
+  { id: 'to-linhmach2', from: 'u-minh', x: 400, y: 2400, to: 'linh-mach', tx: 3400, ty: 400, label: 'Linh Mạch Cổ Địa' },
+  { id: 'to-thienkiem', from: 'u-minh', x: 3400, y: 400, to: 'thien-kiem', tx: 400, ty: 2400, label: 'Thiên Kiếm Nhai', needLv: 18 },
+  { id: 'to-uminh2', from: 'thien-kiem', x: 400, y: 2400, to: 'u-minh', tx: 3400, ty: 400, label: 'U Minh Cốc' },
+  { id: 'to-huyetma', from: 'thien-kiem', x: 3400, y: 400, to: 'huyet-ma', tx: 400, ty: 2400, label: 'Huyết Ma Động', needLv: 20 },
+  { id: 'to-thienkiem2', from: 'huyet-ma', x: 400, y: 2400, to: 'thien-kiem', tx: 3400, ty: 400, label: 'Thiên Kiếm Nhai' },
 ];
 const MAP_ANCHOR = { 'tong-mon': SPAWN, 'yeu-thu': { x: 1920, y: 2380 }, 'hac-phong': { x: 400, y: 2400 }, 'thi-luyen': { x: 1920, y: 2500 }, 'loi-kiep': { x: 1920, y: 2500 }, 'linh-mach': { x: 1920, y: 2500 }, 'tang-kinh': { x: 1920, y: 2500 }, 'luyen-dan': { x: 1920, y: 2500 }, 'u-minh': { x: 1920, y: 2500 }, 'thien-kiem': { x: 1920, y: 2500 }, 'huyet-ma': { x: 1920, y: 2500 } };
 // Vật cản lớn mỗi map (x, y, r) — quái né khi di chuyển (hồ nước, đá lớn, cây đổ)
@@ -281,6 +290,11 @@ const MONSTERS = {
   // Thiên Kiếm Nhai: quái cấp 18-20
   'kiem-khi-linh': { hp: 3200, dmg: 170, tv: 1500, ltMin: 50, ltMax: 80, speed: 215, aggro: 440, count: 14, map: 'thien-kiem', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '18-19' },
   'thien-kiem-thu':{ hp: 4200, dmg: 210, tv: 2000, ltMin: 65, ltMax: 100, speed: 225, aggro: 460, count: 12, map: 'thien-kiem', zone: { x0: 0, x1: 3840, y0: 0, y1: 1440 }, lv: '19-20' },
+  // Thí Luyện Trường: đấu trường boss
+  'hac-phong-lao-yeu': { hp: 6000, dmg: 280, tv: 3000, ltMin: 100, ltMax: 150, speed: 200, aggro: 500, count: 1, map: 'thi-luyen', zone: { x0: 1720, x1: 2120, y0: 1300, y1: 1700 }, lv: '12', boss: true },
+  // Huyết Ma Động: map cuối
+  'huyet-ma-tieu': { hp: 5000, dmg: 250, tv: 2500, ltMin: 80, ltMax: 120, speed: 220, aggro: 480, count: 10, map: 'huyet-ma', zone: { x0: 0, x1: 3840, y0: 1440, y1: 2880 }, lv: '20' },
+  'huyet-ma-vuong': { hp: 15000, dmg: 400, tv: 10000, ltMin: 300, ltMax: 500, speed: 210, aggro: 600, count: 1, map: 'huyet-ma', zone: { x0: 1720, x1: 2120, y0: 800, y1: 1200 }, lv: '25', boss: true },
 };
 
 // ---------- NPC Chương 1 (đều ở map tông môn) ----------
@@ -804,6 +818,7 @@ function getTeleports(p) {
     { map: 'linh-mach', name: 'Linh Mạch Cổ Địa (Trúc Cơ)', needLv: 10 },
     { map: 'u-minh', name: 'U Minh Cốc (15+)', needLv: 15 },
     { map: 'thien-kiem', name: 'Thiên Kiếm Nhai (18+)', needLv: 18 },
+    { map: 'huyet-ma', name: 'Huyết Ma Động (20+)', needLv: 20 },
   ].filter(t => p.level >= t.needLv && p.map !== t.map);
 }
 function doTeleport(p, map) {
