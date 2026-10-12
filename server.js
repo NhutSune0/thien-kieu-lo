@@ -530,7 +530,9 @@ function usePortal(p, id) {
   const pt = PORTALS.find(q => q.id === id);
   if (!pt || pt.from !== p.map) return;
   if (Math.hypot(p.x - pt.x, p.y - pt.y) > 160) { sendTo(p, { t: 'err', text: 'Lại gần cổng hơn đã!' }); return; }
-  if (pt.needLv && p.level < pt.needLv) { sendTo(p, { t: 'err', text: `Cần Luyện Khí tầng ${pt.needLv} mới vào được!` }); return; }
+  const act = p.quests && p.quests.active;
+  const questMap = act && QUESTS[act.id] ? questMobMap(QUESTS[act.id]) : null;
+  if (pt.needLv && p.level < pt.needLv && pt.to !== questMap) { sendTo(p, { t: 'err', text: `Cần Luyện Khí tầng ${pt.needLv} mới vào được!` }); return; }
   p.map = pt.to; p.x = pt.tx; p.y = pt.ty;
   p.moving = false; p.tx = p.ty = null; p.channel = null;
   sendMapData(p);
@@ -810,6 +812,9 @@ function handleTalk(p, npcId) {
 }
 function getTeleports(p) {
   // Danh sách map dịch chuyển được (kèm yêu cầu cấp)
+  // Nếu đang làm NV ở map đó thì cho đi dù chưa đủ cấp
+  const act = p.quests && p.quests.active;
+  const questMap = act && QUESTS[act.id] ? questMobMap(QUESTS[act.id]) : null;
   return [
     { map: 'yeu-thu', name: 'Yêu Thú Sơn Mạch', needLv: 1 },
     { map: 'hac-phong', name: 'Hắc Phong Lĩnh', needLv: 5 },
@@ -819,7 +824,14 @@ function getTeleports(p) {
     { map: 'u-minh', name: 'U Minh Cốc (15+)', needLv: 15 },
     { map: 'thien-kiem', name: 'Thiên Kiếm Nhai (18+)', needLv: 18 },
     { map: 'huyet-ma', name: 'Huyết Ma Động (20+)', needLv: 20 },
-  ].filter(t => p.level >= t.needLv && p.map !== t.map);
+  ].filter(t => (p.level >= t.needLv || t.map === questMap) && p.map !== t.map);
+}
+// Map chứa quái của nhiệm vụ (để cho phép dịch chuyển khi làm NV)
+function questMobMap(q) {
+  for (const o of q.objectives) {
+    if (o.type === 'kill' && MONSTERS[o.mob]) return MONSTERS[o.mob].map;
+  }
+  return null;
 }
 function doTeleport(p, map) {
   const dest = getTeleports(p).find(t => t.map === map);
